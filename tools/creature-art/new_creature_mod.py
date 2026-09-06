@@ -86,6 +86,30 @@ def resolve_layout(spec):
     return layout
 
 
+def layout_from_def(lod_path, creature):
+    """Derive {group: frame count} and the canvas straight from the original .def."""
+    from def_extract import DefFile, extract, read_lod
+
+    blob, entries = read_lod(lod_path)
+    name = creature if creature.upper().endswith(".DEF") else creature + ".DEF"
+    definition = DefFile(extract(blob, entries, name))
+
+    layout, skipped, canvases = {}, [], set()
+    for gid in sorted(definition.groups):
+        head = definition.frame_header(gid, 0)
+        canvases.add((head["fullWidth"], head["fullHeight"]))
+        if gid not in GROUP_NAMES:
+            # e.g. CSKELE has groups 9 and 10, documented as unused duplicates of
+            # TURN_L/TURN_R in client/battle/BattleConstants.h
+            skipped.append(gid)
+            continue
+        layout[gid] = len(definition.groups[gid])
+
+    if len(canvases) > 1:
+        raise SystemExit("%s: groups disagree on canvas size: %s" % (creature, sorted(canvases)))
+    return layout, next(iter(canvases)), skipped
+
+
 def build_animation(creature, layout, basepath, shadow_mode, generate_overlay):
     sequences = []
     for gid in sorted(layout):
@@ -115,10 +139,18 @@ def main(argv=None):
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--mod-dir", type=Path, required=True)
-    parser.add_argument("--creature", required=True, help="animation name, e.g. CSKELET")
-    parser.add_argument("--canvas", type=parse_canvas, required=True, help="1x frame size, e.g. 116x104")
+    parser.add_argument("--creature", required=True, help="animation name, e.g. CSKELE")
+    parser.add_argument(
+        "--from-def",
+        type=Path,
+        metavar="LOD",
+        help="read canvas and frame counts from the original .def in this .lod "
+             "(e.g. ~/Library/Application Support/vcmi/Data/H3sprite.lod). "
+             "Replaces --canvas and --layout.",
+    )
+    parser.add_argument("--canvas", type=parse_canvas, help="1x frame size, e.g. 450x400")
     parser.add_argument("--scales", type=parse_scales, default=[1, 2])
-    parser.add_argument("--layout", type=Path, required=True, help="group -> frame count JSON")
+    parser.add_argument("--layout", type=Path, help="group -> frame count JSON")
     parser.add_argument(
         "--generate-shadow",
         type=int,
@@ -135,8 +167,20 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     creature = args.creature.upper()
-    layout = resolve_layout(load_json(args.layout))
-    width, height = args.canvas
+
+    if args.from_def:
+        if args.canvas or args.layout:
+            parser.error("--from-def replaces --canvas and --layout")
+        layout, (width, height), skipped = layout_from_def(args.from_def, creature)
+        print("read %s from %s: canvas %dx%d, %d group(s), %d frame(s)" % (
+            creature, args.from_def.name, width, height, len(layout), sum(layout.values())))
+        if skipped:
+            print("  skipped unused/unknown group(s): %s" % ", ".join(str(g) for g in skipped))
+    else:
+        if not args.canvas or not args.layout:
+            parser.error("pass --from-def, or both --canvas and --layout")
+        layout = resolve_layout(load_json(args.layout))
+        width, height = args.canvas
     basepath = "creatures/%s/" % creature.lower()
 
     content = args.mod_dir / "content"
