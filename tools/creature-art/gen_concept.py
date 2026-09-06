@@ -45,13 +45,18 @@ VIEWS = {
     # silhouette, and fail when limbs sit against the torso -- which is exactly what
     # the proportion hint asks for. So the mesh is built from this view instead, and
     # the compact in-game proportions come from the animation, not from the concept.
+    #
+    # The weapon has to be held clear of the body too. Tucked against the leg it
+    # reconstructs as a thin sliver that vanishes from the side -- and in the
+    # original the sword is most of what makes the silhouette readable.
     "apose": (
         "standing straight in a neutral A-pose, facing directly forward, "
         "arms held down and out away from the body at about forty-five degrees "
         "with clear space between each arm and the torso, "
         "legs straight and shoulder-width apart with clear space between them, "
-        "hands open and empty, any weapon held straight down at the side clear of "
-        "the leg, body upright and not hunched, symmetrical"
+        "any weapon held out to the side well away from the body, blade fully "
+        "visible against the background and not overlapping the torso or legs, "
+        "body upright and not hunched, symmetrical"
     ),
 }
 
