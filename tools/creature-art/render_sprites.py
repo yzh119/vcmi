@@ -208,6 +208,72 @@ def render_to(path):
     bpy.ops.render.render(write_still=True)
 
 
+def clamp_alpha(path, threshold=0.06):
+    """Zero out near-transparent pixels.
+
+    The shadow catcher leaves a faint scatter across the whole frame -- sampling
+    noise the denoiser turns into a few thousandths of alpha. Invisible, but it
+    stretches the layer's bounding box to the full canvas, and everything
+    downstream measures bounding boxes.
+    """
+    image = bpy.data.images.load(path)
+    try:
+        pixels = [0.0] * (len(image.pixels))
+        image.pixels.foreach_get(pixels)
+        for index in range(3, len(pixels), 4):
+            if pixels[index] < threshold:
+                pixels[index] = 0.0
+        image.pixels.foreach_set(pixels)
+        image.filepath_raw = path
+        image.file_format = "PNG"
+        image.save()
+    finally:
+        bpy.data.images.remove(image)
+
+def make_shadow_catcher(meshes, camera):
+    """A ground plane that catches the shadow and renders nothing else.
+
+    Cycles' shadow catcher writes the shadow into alpha on a transparent film, so
+    the pass comes out as exactly the layer the engine wants: black where the
+    creature occludes the light, transparent everywhere else.
+    """
+    lowest = min((obj.matrix_world @ v.co).z
+                 for obj in meshes for v in obj.data.vertices)
+    bpy.ops.mesh.primitive_plane_add(size=200.0, location=(0.0, 0.0, lowest))
+    plane = bpy.context.object
+    plane.is_shadow_catcher = True
+    return plane
+
+
+def set_overlay_materials(meshes):
+    """Flat white emission on everything: the hover-highlight silhouette.
+
+    Returns what to restore, so the beauty pass can be rendered afterwards.
+    """
+    white = bpy.data.materials.new("overlay_white")
+    white.use_nodes = True
+    tree = white.node_tree
+    tree.nodes.clear()
+    emission = tree.nodes.new("ShaderNodeEmission")
+    emission.inputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
+    emission.inputs[1].default_value = 1.0
+    output = tree.nodes.new("ShaderNodeOutputMaterial")
+    tree.links.new(emission.outputs[0], output.inputs[0])
+
+    saved = []
+    for obj in meshes:
+        saved.append((obj, list(obj.data.materials)))
+        obj.data.materials.clear()
+        obj.data.materials.append(white)
+    return saved
+
+
+def restore_materials(saved):
+    for obj, materials in saved:
+        obj.data.materials.clear()
+        for material in materials:
+            obj.data.materials.append(material)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
@@ -223,6 +289,8 @@ def main():
     parser.add_argument("--frames", type=int, default=0,
                         help="override the group's frame count")
     parser.add_argument("--samples", type=int, default=48)
+    parser.add_argument("--body-only", action="store_true",
+                        help="skip the shadow and overlay passes")
     parser.add_argument("--scale", type=int, default=1, help="render at N times 1x")
     args = parser.parse_args(argv_after_ddash())
 
@@ -257,13 +325,33 @@ def main():
         spec = poses.GROUPS[args.group]
         count = args.frames or spec["frames"]
         name = args.name or args.group.lower()
+        sun = next(o for o in scene.objects if o.type == "LIGHT")
         for index in range(count):
             # A loop samples [0, 1) so the last frame does not repeat the first;
             # a one-shot samples [0, 1] so it reaches its final pose.
             t = index / float(count) if spec.get("loop") else (
                 index / float(count - 1) if count > 1 else 0.0)
             apply_pose(armature, poses.pose_at(args.group, t))
-            render_to(os.path.join(args.out, "%s_%02d.png" % (name, index)))
+            stem = os.path.join(args.out, "%s_%02d" % (name, index))
+            render_to(stem + ".png")
+
+            if not args.body_only:
+                # Shadow: the catcher plane only, creature hidden from camera.
+                plane = make_shadow_catcher(meshes, camera)
+                for obj in meshes:
+                    obj.visible_camera = False
+                render_to(stem + "-shadow.png")
+                clamp_alpha(stem + "-shadow.png")
+                for obj in meshes:
+                    obj.visible_camera = True
+                bpy.data.objects.remove(plane, do_unlink=True)
+
+                # Overlay: flat white, no lighting, no shadow.
+                saved = set_overlay_materials(meshes)
+                sun.hide_render = True
+                render_to(stem + "-overlay.png")
+                sun.hide_render = False
+                restore_materials(saved)
     else:
         count = 1
         render_to(os.path.join(args.out, "%s_00.png" % (args.name or "frame")))
