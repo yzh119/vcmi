@@ -1,49 +1,63 @@
 {
-  "_comment": "Necropolis roster. `aspect` is the original's width-to-height at idle, measured with def_extract.py; it is the gate preview.py readability checks a concept against. `body` is the per-creature half of the prompt; the shared style and backdrop requirements are appended by gen_concept.py.",
+  "_comment": "Necropolis roster. `aspect` is the original's width-to-height at idle, measured with def_extract.py. `design` says what the creature looks like and carries no pose; `pose` is the stance for the front/side views only. The apose view supplies its own pose, because a mesh has to be riggable and a compact stance defeats pose estimation.",
   "_moderation": "FLUX rejects graphic decay wording (\"rotting flesh\", \"dried blood\", \"bloated\") as Violence. The undead entries are worded around it: desiccated, drawn tight, tattered. Keep it that way.",
-  "_style": "Painterly stylised realism, not photoreal, detail subordinated to shape. Bold readable silhouette, three strong value masses, thick simplified forms. Compact upright framing.",
+  "_style": "Painterly stylised realism, not photoreal, detail subordinated to shape. Bold readable silhouette, three strong value masses, thick simplified forms.",
 
   "creatures": [
     { "name": "skeleton", "def": "CSKELE.DEF", "aspect": 0.53,
-      "body": "Stylised fantasy skeleton warrior, bare bone, hunched forward with the skull thrust ahead of the shoulders, holding a long sword low and angled down across the front of the body, arms tucked near the ribs, short forward step. Desaturated grey-green ivory bone." },
+      "design": "Stylised fantasy skeleton warrior, bare bone, exaggerated skull and pelvis masses, thick simplified limbs, carrying a long plain sword. Desaturated grey-green ivory bone.",
+      "pose": "Hunched forward with the skull thrust ahead of the shoulders, sword low and angled down across the front of the body, arms near the ribs, short forward step." },
 
     { "name": "skeletonWarrior", "def": "CWSKEL.DEF", "aspect": 0.48,
-      "body": "Stylised fantasy armoured skeleton warrior, rusted iron helm and shoulder plates over bare bone, round shield held close to the chest, sword low across the body, hunched forward stance. Desaturated bone and dark oxidised iron." },
+      "design": "Stylised fantasy armoured skeleton warrior, rusted iron helm and shoulder plates over bare bone, a round shield and a sword. Desaturated bone and dark oxidised iron.",
+      "pose": "Hunched forward, shield held close to the chest, sword low across the body." },
 
     { "name": "walkingDead", "def": "CZOMBI.DEF", "aspect": 0.45,
-      "body": "Stylised fantasy undead figure, desiccated grey-green skin drawn tight over the frame, tattered rags, arms hanging heavy and forward, head tilted to one side, shambling forward step, narrow slumped silhouette. Sickly grey-green and dull brown." },
+      "design": "Stylised fantasy undead figure, desiccated grey-green skin drawn tight over the frame, tattered rags. Sickly grey-green and dull brown.",
+      "pose": "Arms hanging heavy and forward, head tilted to one side, shambling forward step, narrow slumped silhouette." },
 
     { "name": "zombieLord", "def": "CZOMLO.DEF", "aspect": 0.46,
-      "body": "Stylised fantasy undead lord, larger and broader than a common one, desiccated grey-green skin over heavy shoulders, remnants of a leather harness, arms hanging forward, slumped heavy stance. Sickly grey-green and dull brown." },
+      "design": "Stylised fantasy undead lord, larger and broader than a common one, desiccated grey-green skin over heavy shoulders, remnants of a leather harness. Sickly grey-green and dull brown.",
+      "pose": "Arms hanging forward, slumped heavy stance." },
 
     { "name": "wight", "def": "CWIGHT.DEF", "aspect": 0.33,
-      "body": "Stylised fantasy wight, a tall narrow hooded spectral figure, long ragged robe falling straight to a frayed hem with no legs visible, hollow dark void inside the hood, thin skeletal hands emerging from the sleeves, arms held close. Very tall and narrow silhouette, roughly three times as tall as wide. Cold desaturated grey-blue and bone." },
+      "design": "Stylised fantasy wight, a hooded spectral figure in a long ragged robe falling straight to a frayed hem with no legs visible, hollow dark void inside the hood, thin skeletal hands. Cold desaturated grey-blue and bone.",
+      "pose": "Arms held close, robe hanging straight, very tall narrow silhouette." },
 
     { "name": "wraith", "def": "CWRAIT.DEF", "aspect": 0.38,
-      "body": "Stylised fantasy wraith, a tall narrow hooded spectral figure holding a scythe upright and close to the body, long ragged robe trailing to a frayed hem, hollow glowing eyes in shadow, gaunt skeletal hands. Tall narrow silhouette. Cold desaturated grey-blue, pale bone, faint sickly green glow." },
+      "design": "Stylised fantasy wraith, a hooded spectral figure with a scythe, long ragged robe trailing to a frayed hem, hollow glowing eyes in shadow, gaunt skeletal hands. Cold desaturated grey-blue, pale bone, faint sickly green glow.",
+      "pose": "Scythe held upright and close to the body, tall narrow silhouette." },
 
     { "name": "vampire", "def": "CVAMP.DEF", "aspect": 0.47,
-      "body": "Stylised fantasy vampire, gaunt pale noble in a high-collared cloak wrapped close to the body, arms drawn in, clawed hands, sharp angular face, slight forward crouch. Cloak kept tight, not spread. Desaturated pale skin, deep crimson and near-black." },
+      "design": "Stylised fantasy vampire, gaunt pale noble in a high-collared cloak, clawed hands, sharp angular face. Desaturated pale skin, deep crimson and near-black.",
+      "pose": "Cloak wrapped close to the body, arms drawn in, slight forward crouch." },
 
     { "name": "vampireLord", "def": "CNOSFE.DEF", "aspect": 0.49,
-      "body": "Stylised fantasy vampire lord, taller and more imposing than a common vampire, gaunt pale noble in a heavy high-collared cloak held close, ornate dark armour at the shoulders, clawed hands raised, commanding upright posture. Desaturated pale skin, deep crimson, blackened silver." },
+      "design": "Stylised fantasy vampire lord, taller and more imposing than a common vampire, gaunt pale noble in a heavy high-collared cloak with ornate dark armour at the shoulders, clawed hands. Desaturated pale skin, deep crimson, blackened silver.",
+      "pose": "Cloak held close, hands raised, commanding upright posture." },
 
     { "name": "lich", "def": "CLICH.DEF", "aspect": 0.42,
-      "body": "Stylised fantasy lich, skeletal sorcerer in a long heavy robe falling straight to the floor, skull face inside a deep hood, one bony hand raised in a casting gesture close to the chest, the other holding a short staff vertically. Tall narrow silhouette. Bone white, deep indigo robe, cold green spell light." },
+      "design": "Stylised fantasy lich, skeletal sorcerer in a long heavy robe falling straight to the floor, skull face inside a deep hood, holding a short staff. Bone white, deep indigo robe, cold green spell light.",
+      "pose": "One bony hand raised in a casting gesture close to the chest, staff held vertically, tall narrow silhouette." },
 
     { "name": "powerLich", "def": "CPLICH.DEF", "aspect": 0.41,
-      "body": "Stylised fantasy power lich, a taller more ornate skeletal sorcerer, heavy layered robe to the floor, elaborate collar and headdress framing a skull face, both bony hands raised close to the chest channelling energy, staff held vertical. Tall narrow silhouette. Bone white, deep indigo and gold, cold green spell light." },
+      "design": "Stylised fantasy power lich, a taller more ornate skeletal sorcerer, heavy layered robe to the floor, elaborate collar and headdress framing a skull face, holding a staff. Bone white, deep indigo and gold, cold green spell light.",
+      "pose": "Both bony hands raised close to the chest channelling energy, staff vertical, tall narrow silhouette." },
 
     { "name": "blackKnight", "def": "CBKNIG.DEF", "aspect": 0.81,
-      "body": "Stylised fantasy black knight mounted on a skeletal undead warhorse, full blackened plate armour, closed helm, long lance or sword held low along the horse's flank, horse standing in a short stride with head low. Wide horizontal silhouette, clearly wider than tall in the body, rider compact on the saddle. Blackened steel, dark crimson caparison, bone." },
+      "design": "Stylised fantasy black knight in full blackened plate armour with a closed helm, mounted on a skeletal undead warhorse, carrying a long sword. Blackened steel, dark crimson caparison, bone.",
+      "pose": "Sword held low along the horse's flank, horse standing in a short stride with head low, rider compact on the saddle." },
 
     { "name": "dreadKnight", "def": "CBLORD.DEF", "aspect": 0.84,
-      "body": "Stylised fantasy dread knight mounted on a skeletal undead warhorse, heavier and more ornate blackened plate than a black knight, horned closed helm, sword raised close to the shoulder, horse in a short stride with head low. Wide horizontal silhouette. Blackened steel, dark crimson, bone, faint cold glow in the visor." },
+      "design": "Stylised fantasy dread knight in heavy ornate blackened plate with a horned closed helm, mounted on a skeletal undead warhorse, carrying a sword. Blackened steel, dark crimson, bone, faint cold glow in the visor.",
+      "pose": "Sword raised close to the shoulder, horse in a short stride with head low." },
 
     { "name": "boneDragon", "def": "CNDRGN.DEF", "aspect": 0.76,
-      "body": "Stylised fantasy bone dragon, a skeletal dragon standing on all fours with tattered membrane stretched between exposed wing bones, wings held folded and close to the body rather than spread, long neck lowered forward, skull head with empty sockets, spined tail curled in. Wide compact silhouette. Grey-green ivory bone and dark tattered membrane." },
+      "design": "Stylised fantasy bone dragon, a skeletal dragon with tattered membrane stretched between exposed wing bones, skull head with empty sockets, spined tail. Grey-green ivory bone and dark tattered membrane.",
+      "pose": "Standing on all fours, wings folded close to the body, long neck lowered forward, tail curled in." },
 
     { "name": "ghostDragon", "def": "CHDRGN.DEF", "aspect": 0.76,
-      "body": "Stylised fantasy ghost dragon, a spectral translucent dragon standing on all fours, tattered ghostly wings held folded close to the body, long neck lowered forward, hollow glowing eyes, trailing wisps at the tail. Wide compact silhouette. Cold desaturated grey-green translucence, faint inner glow." }
+      "design": "Stylised fantasy ghost dragon, a spectral translucent dragon with tattered ghostly wings, hollow glowing eyes, trailing wisps at the tail. Cold desaturated grey-green translucence, faint inner glow.",
+      "pose": "Standing on all fours, wings folded close to the body, long neck lowered forward." }
   ]
 }

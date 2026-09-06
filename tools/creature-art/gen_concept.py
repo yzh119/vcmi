@@ -41,7 +41,22 @@ MESH_SAFE = (
 VIEWS = {
     "front": "three-quarter front view",
     "side": "side view, same pose and proportions",
+    # A rigging-friendly neutral pose. Auto-riggers estimate a skeleton from the
+    # silhouette, and fail when limbs sit against the torso -- which is exactly what
+    # the proportion hint asks for. So the mesh is built from this view instead, and
+    # the compact in-game proportions come from the animation, not from the concept.
+    "apose": (
+        "standing straight in a neutral A-pose, facing directly forward, "
+        "arms held down and out away from the body at about forty-five degrees "
+        "with clear space between each arm and the torso, "
+        "legs straight and shoulder-width apart with clear space between them, "
+        "hands open and empty, any weapon held straight down at the side clear of "
+        "the leg, body upright and not hunched, symmetrical"
+    ),
 }
+
+# Views whose whole point is a spread pose; the proportion hint would fight them.
+POSE_VIEWS = {"apose"}
 
 
 def post(path, payload, key):
@@ -188,9 +203,15 @@ def run_roster(args, key):
             if target.exists() and not args.force:
                 print("skip (exists): %s" % target.name)
                 continue
-            prompt = " ".join(x for x in (
-                entry["body"], style, proportion_hint(entry.get("aspect")),
-                VIEWS[view] + ".", MESH_SAFE) if x)
+            # `design` is what the creature is; `pose` is how it stands. The apose
+            # view brings its own pose and skips both the creature's pose and the
+            # proportion hint, which exist to serve the in-game silhouette.
+            if view in POSE_VIEWS:
+                parts = (entry.get("design") or entry.get("body"), style)
+            else:
+                parts = (entry.get("design") or entry.get("body"), entry.get("pose", ""),
+                         style, proportion_hint(entry.get("aspect")))
+            prompt = " ".join(x for x in tuple(parts) + (VIEWS[view] + ".", MESH_SAFE) if x)
             if args.dry_run:
                 print("[%s %s]\n  %s\n" % (entry["name"], view, prompt))
                 continue
