@@ -46,12 +46,9 @@ except ImportError:
     Image = None
 
 # How far the alpha bounding box may wander within an idle loop, in 1x pixels,
-# before it reads as bobbing rather than breathing.
+# before it reads as bobbing rather than breathing. Calibrated against the original
+# H3 art, where the idle groups hold their ground line at exactly 0.0 drift.
 IDLE_DRIFT_LIMIT = 2
-
-# Ground line drift allowed in an action group, in 1x pixels. Attacks legitimately
-# lunge, so this is loose; it exists to catch a whole group rendered off-anchor.
-ACTION_DRIFT_LIMIT = 12
 
 
 class Report:
@@ -311,15 +308,36 @@ def check_drift(report, creature, scale, sprites_root, groups):
         ground_drift = (max(bottoms) - min(bottoms)) / float(scale)
         centre_drift = (max(centres) - min(centres)) / float(scale)
 
-        limit = IDLE_DRIFT_LIMIT if gid in IDLE_GROUPS else ACTION_DRIFT_LIMIT
-        worst = max(ground_drift, centre_drift)
-        if worst > limit:
-            kind = "idle loop" if gid in IDLE_GROUPS else "group"
-            report.warn(
+        if gid in IDLE_GROUPS:
+            # An idle loop must stay planted. Judge that by the ground line only: the
+            # bounding-box centre moves for legitimate reasons -- CSKELE's MOUSEON raises
+            # its sword from horizontal to vertical, dragging the centre 9px while the
+            # feet never move a pixel.
+            if ground_drift > IDLE_DRIFT_LIMIT:
+                report.warn(
+                    creature,
+                    "%dx: group %s idle loop drifts inside the canvas -- ground line moves "
+                    "%.1fpx (1x-equivalent, limit %dpx); the creature will appear to slide"
+                    % (scale, group_label(gid), ground_drift, IDLE_DRIFT_LIMIT),
+                )
+            elif centre_drift > IDLE_DRIFT_LIMIT:
+                report.info(
+                    creature,
+                    "%dx: group %s idle loop is planted (ground line %.1fpx) but its outline "
+                    "shifts %.1fpx -- normal for a raised weapon, wrong if the body sways"
+                    % (scale, group_label(gid), ground_drift, centre_drift),
+                )
+        else:
+            # Action groups legitimately move -- a lunge shifts the ground line, and a
+            # weapon swing drags the bounding-box centre far outside the body. Measured
+            # against the original H3 art, an absolute threshold here only produces noise
+            # (CSKELE's ATTACK_FRONT alone drifts 50px of centre). Report the numbers and
+            # let the reviewer compare them against the original rather than a guess.
+            report.info(
                 creature,
-                "%dx: group %s %s drifts inside the canvas -- ground line %.1fpx, centre %.1fpx "
-                "(1x-equivalent, limit %dpx); the creature will appear to slide"
-                % (scale, group_label(gid), kind, ground_drift, centre_drift, limit),
+                "%dx: group %s moves inside the canvas -- ground line %.1fpx, centre %.1fpx "
+                "(1x-equivalent); compare against the original before assuming this is wrong"
+                % (scale, group_label(gid), ground_drift, centre_drift),
             )
 
 
