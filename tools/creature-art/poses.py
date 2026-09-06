@@ -25,12 +25,16 @@ BASE = {
     "Spine":         (6, 0, 0),
     "neck":          (-14, 0, 0),
     "Head":          (-10, 0, 0),
+    # X is the forward/back swing, Z lowers the arm from the A-pose. The first
+    # version had X at -20 on the upper arm and -35 on the forearm, which read as
+    # reaching forward rather than carrying a sword; the swing is nearly gone now
+    # and the drop does the work.
     "RightShoulder": (0, 0, -8),
-    "RightArm":      (-20, 10, -55),
-    "RightForeArm":  (-35, 0, 0),
+    "RightArm":      (-16, 10, -55),
+    "RightForeArm":  (-30, 0, 0),
     "LeftShoulder":  (0, 0, 8),
-    "LeftArm":       (-14, -10, 50),
-    "LeftForeArm":   (-30, 0, 0),
+    "LeftArm":       (-12, -10, 50),
+    "LeftForeArm":   (-26, 0, 0),
     "RightUpLeg":    (14, 0, 0),
     "RightLeg":      (-26, 0, 0),
     "RightFoot":     (12, 0, 0),

@@ -134,7 +134,8 @@ def calibrate_camera(camera, canvas, ground, height_px, probe_path, rounds=8):
     return box
 
 
-def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples):
+def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples,
+                key_energy=6.0, ambient=0.12):
     reset_scene()
     meshes = import_model(model)
     scene = bpy.context.scene
@@ -174,13 +175,24 @@ def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples):
 
     # Flat, even key light: the render stage supplies its own shadow pass, so the
     # beauty pass should not bake one in.
+    # The original has a hard value structure -- lit bone against near-black
+    # recesses. A soft even key washes that out at 79 pixels, where three or four
+    # value masses are all that survives. So: a strong key, a weak fill for shape,
+    # and very little ambient.
     sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", type="SUN"))
-    sun.data.energy = 3.0
-    sun.rotation_euler = (math.radians(50), 0.0, math.radians(azimuth - 30))
+    sun.data.energy = key_energy
+    sun.data.angle = math.radians(8)
+    sun.rotation_euler = (math.radians(38), 0.0, math.radians(azimuth - 55))
     scene.collection.objects.link(sun)
+
+    fill = bpy.data.objects.new("fill", bpy.data.lights.new("fill", type="SUN"))
+    fill.data.energy = key_energy * 0.18
+    fill.rotation_euler = (math.radians(70), 0.0, math.radians(azimuth + 120))
+    scene.collection.objects.link(fill)
+
     world = bpy.data.worlds.new("w")
     world.use_nodes = True
-    world.node_tree.nodes["Background"].inputs[1].default_value = 0.6
+    world.node_tree.nodes["Background"].inputs[1].default_value = ambient
     scene.world = world
 
     return meshes, camera, sun
@@ -207,6 +219,76 @@ def render_to(path):
     bpy.context.scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
 
+
+def connected_components(mesh):
+    """Union-find over edges. A skeleton mesh is hundreds of separate bones."""
+    parent = list(range(len(mesh.vertices)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for edge in mesh.edges:
+        a, b = find(edge.vertices[0]), find(edge.vertices[1])
+        if a != b:
+            parent[a] = b
+
+    groups = {}
+    for index in range(len(mesh.vertices)):
+        groups.setdefault(find(index), []).append(index)
+    return list(groups.values())
+
+
+def rebind_weapon(meshes, armature, bone="RightHand", grip=0.16):
+    """Bind the weapon to the hand bone.
+
+    Meshy's auto-rig weights the mesh as one body and puts the weapon on whichever
+    bone is nearest its centre of mass. For the skeleton that was Hips: the arm
+    swings and the sword stays behind, which silently breaks every attack.
+
+    The weapon is found geometrically, not by weight. It is the connected component
+    that the hand is gripping -- some of its vertices sit within `grip` of the hand
+    joint -- and that extends furthest away from it. Every other component near the
+    hand is a finger bone, which is short.
+    """
+    # Use the pose bone matrix, not data.bones[].head. The glTF importer leaves
+    # rest-space bone heads in a different space entirely -- reading them put the
+    # hand 23 units away from the mesh and matched nothing.
+    pose_bone = armature.pose.bones.get(bone)
+    if pose_bone is None:
+        return 0
+    hand = (armature.matrix_world @ pose_bone.matrix).translation
+
+    moved = 0
+    for obj in meshes:
+        group = obj.vertex_groups.get(bone) or obj.vertex_groups.new(name=bone)
+        others = [g for g in obj.vertex_groups if g.name != bone]
+
+        best, best_reach = None, 0.0
+        for component in connected_components(obj.data):
+            points = [obj.matrix_world @ obj.data.vertices[i].co for i in component]
+            if min((p - hand).length for p in points) > grip:
+                continue
+            reach = max((p - hand).length for p in points)
+            if reach > best_reach:
+                best, best_reach = component, reach
+
+        # A finger is a few centimetres; a weapon is a limb-length away.
+        if best is None or best_reach < 0.25:
+            continue
+
+        for index in best:
+            for other in others:
+                try:
+                    other.remove([index])
+                except RuntimeError:
+                    pass
+            group.add([index], 1.0, "REPLACE")
+        moved += len(best)
+        print("REBIND component of %d vertices, reach %.2f" % (len(best), best_reach))
+    return moved
 
 def clamp_alpha(path, threshold=0.06):
     """Zero out near-transparent pixels.
@@ -289,6 +371,10 @@ def main():
     parser.add_argument("--frames", type=int, default=0,
                         help="override the group's frame count")
     parser.add_argument("--samples", type=int, default=48)
+    parser.add_argument("--rebind-weapon", action="store_true",
+                        help="move weapon geometry onto the hand bone before posing")
+    parser.add_argument("--key-energy", type=float, default=6.0)
+    parser.add_argument("--ambient", type=float, default=0.12)
     parser.add_argument("--body-only", action="store_true",
                         help="skip the shadow and overlay passes")
     parser.add_argument("--scale", type=int, default=1, help="render at N times 1x")
@@ -300,12 +386,16 @@ def main():
     creature_px = args.height * args.scale
 
     meshes, camera, _ = build_scene(
-        args.model, canvas, args.elevation, args.azimuth, ground, creature_px, args.samples)
+        args.model, canvas, args.elevation, args.azimuth, ground, creature_px, args.samples,
+        args.key_energy, args.ambient)
 
     os.makedirs(args.out, exist_ok=True)
     scene = bpy.context.scene
 
     armature = find_armature()
+    if armature is not None and args.rebind_weapon:
+        moved = rebind_weapon(meshes, armature)
+        print("REBIND %d vertices onto the hand" % moved)
 
     # Calibrate against the pose that will actually be rendered. The rig arrives in
     # an A-pose, and the combat stance is hunched -- calibrating before posing put
@@ -325,7 +415,7 @@ def main():
         spec = poses.GROUPS[args.group]
         count = args.frames or spec["frames"]
         name = args.name or args.group.lower()
-        sun = next(o for o in scene.objects if o.type == "LIGHT")
+        lights = [o for o in scene.objects if o.type == "LIGHT"]
         for index in range(count):
             # A loop samples [0, 1) so the last frame does not repeat the first;
             # a one-shot samples [0, 1] so it reaches its final pose.
@@ -348,9 +438,11 @@ def main():
 
                 # Overlay: flat white, no lighting, no shadow.
                 saved = set_overlay_materials(meshes)
-                sun.hide_render = True
+                for light in lights:
+                    light.hide_render = True
                 render_to(stem + "-overlay.png")
-                sun.hide_render = False
+                for light in lights:
+                    light.hide_render = False
                 restore_materials(saved)
     else:
         count = 1

@@ -49,13 +49,19 @@ VIEWS = {
     # The weapon has to be held clear of the body too. Tucked against the leg it
     # reconstructs as a thin sliver that vanishes from the side -- and in the
     # original the sword is most of what makes the silhouette readable.
+    #
+    # But "clear of the body" alone bought a sword nearly as long as the figure,
+    # held at arm's length like a fishing rod, and the mesh inherits whatever the
+    # concept draws. Hence the explicit proportion and the bent elbow.
     "apose": (
         "standing straight in a neutral A-pose, facing directly forward, "
         "arms held down and out away from the body at about forty-five degrees "
         "with clear space between each arm and the torso, "
         "legs straight and shoulder-width apart with clear space between them, "
-        "any weapon held out to the side well away from the body, blade fully "
-        "visible against the background and not overlapping the torso or legs, "
+        "any weapon held down and out to the side at about forty-five degrees, "
+        "clear of the torso and legs and fully visible against the background, "
+        "the weapon in correct proportion to the figure and no longer than half "
+        "its height, elbow bent so the hand stays near the hip, "
         "body upright and not hunched, symmetrical"
     ),
 }
