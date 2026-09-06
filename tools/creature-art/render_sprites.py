@@ -30,6 +30,11 @@ from mathutils import Euler, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import poses  # noqa: E402
+from vcmi_anim import GROUP_IDS  # noqa: E402
+
+
+def poses_group_id(name):
+    return GROUP_IDS[name]
 
 
 def argv_after_ddash():
@@ -220,6 +225,22 @@ def render_to(path):
     bpy.ops.render.render(write_still=True)
 
 
+def frames_from_original(lod_path, def_name, group_id):
+    """How many frames the creature's own .def uses for this group.
+
+    poses.py carries the skeleton's frame counts, and inheriting them for every
+    creature silently changes the animation: the zombie's death is nine frames in
+    the original and was being rendered as six. The engine allows a different
+    count -- the JSON replaces a group wholesale -- but it should be a decision,
+    not a leftover.
+    """
+    from def_extract import DefFile, extract, read_lod
+
+    blob, entries = read_lod(lod_path)
+    name = def_name if def_name.upper().endswith(".DEF") else def_name + ".DEF"
+    parsed = DefFile(extract(blob, entries, name))
+    return len(parsed.groups.get(group_id, []))
+
 def connected_components(mesh):
     """Union-find over edges. A skeleton mesh is hundreds of separate bones."""
     parent = list(range(len(mesh.vertices)))
@@ -371,6 +392,8 @@ def main():
     parser.add_argument("--frames", type=int, default=0,
                         help="override the group's frame count")
     parser.add_argument("--samples", type=int, default=48)
+    parser.add_argument("--lod", help="archive to read the original frame counts from")
+    parser.add_argument("--def", dest="definition", help="the creature's def, e.g. CZOMBI.DEF")
     parser.add_argument("--rebind-weapon", action="store_true",
                         help="move weapon geometry onto the hand bone before posing")
     parser.add_argument("--key-energy", type=float, default=6.0)
@@ -413,7 +436,12 @@ def main():
         if armature is None:
             raise SystemExit("--group needs a rigged model; no armature found")
         spec = poses.GROUPS[args.group]
-        count = args.frames or spec["frames"]
+        count = args.frames
+        if not count and args.lod and args.definition:
+            count = frames_from_original(args.lod, args.definition, poses_group_id(args.group))
+            if count:
+                print("FRAMES %s: %d from the original" % (args.group, count))
+        count = count or spec["frames"]
         name = args.name or args.group.lower()
         lights = [o for o in scene.objects if o.type == "LIGHT"]
         for index in range(count):
