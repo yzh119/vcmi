@@ -70,6 +70,56 @@ def poll(url, key, timeout=300):
     raise SystemExit("timed out waiting for the image")
 
 
+def cutout(path, tolerance=90):
+    """Key the chroma backdrop to transparency, then despill what remains.
+
+    Order matters. Despilling first would neutralise the green backdrop itself into
+    a flat grey close to bone, and there would be nothing left to key against. So:
+    key while the backdrop is still unmistakably green, then despill only the subject.
+
+    Despill is the classic one -- wherever green leads the other two channels it is
+    pulled back to their maximum. Green bleeds onto anything standing in front of a
+    green screen, and that tint would otherwise be baked into the mesh texture.
+
+    Writing a real cutout also means every downstream step gets a true alpha channel
+    instead of guessing at a backdrop.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        return "Pillow not installed - left as-is, no cutout"
+
+    with Image.open(path) as raw:
+        image = raw.convert("RGBA")
+    pixels = image.load()
+    w, h = image.size
+
+    border = ([pixels[x, 0][:3] for x in range(0, w, 4)] +
+              [pixels[x, h - 1][:3] for x in range(0, w, 4)] +
+              [pixels[0, y][:3] for y in range(0, h, 4)] +
+              [pixels[w - 1, y][:3] for y in range(0, h, 4)])
+    bg = tuple(sorted(c[i] for c in border)[len(border) // 2] for i in range(3))
+
+    keyed = 0
+    for y in range(h):
+        for x in range(w):
+            r, g, b, _ = pixels[x, y]
+            if abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) <= tolerance:
+                pixels[x, y] = (r, g, b, 0)
+                keyed += 1
+            else:
+                ceiling = max(r, b)
+                if g > ceiling:
+                    pixels[x, y] = (r, ceiling, b, 255)
+
+    image.save(path)
+    subject = w * h - keyed
+    if subject < w * h * 0.01:
+        return "WARNING: keying removed almost everything - check the backdrop"
+    return "cutout: backdrop #%02X%02X%02X removed, subject is %.0f%% of frame" % (
+        bg[0], bg[1], bg[2], 100.0 * subject / (w * h))
+
+
 def generate(prompt, out_path, key, model, width, height, seed):
     payload = {"prompt": prompt, "width": width, "height": height}
     if seed is not None:
@@ -82,7 +132,10 @@ def generate(prompt, out_path, key, model, width, height, seed):
     with urllib.request.urlopen(url, timeout=120) as response:
         out_path.write_bytes(response.read())
 
+    note = cutout(out_path)
+
     return {
+        "cutout": note,
         "file": out_path.name,
         "prompt": prompt,
         "model": model,
@@ -94,12 +147,62 @@ def generate(prompt, out_path, key, model, width, height, seed):
     }
 
 
+def load_roster(path):
+    import re
+    raw = path.read_text()
+    raw = re.sub(r",(\s*[}\]])", r"\1", raw)
+    return json.loads(raw)
+
+
+def run_roster(args, key):
+    """Generate every creature in a roster into one directory."""
+    roster = load_roster(args.roster)
+    style = roster.get("_style", "")
+    views = [v.strip() for v in args.views.split(",") if v.strip()]
+    args.out.mkdir(parents=True, exist_ok=True)
+
+    records, total, failed = [], 0.0, []
+    for entry in roster["creatures"]:
+        for view in views:
+            target = args.out / ("%s-%s.png" % (entry["name"], view))
+            if target.exists() and not args.force:
+                print("skip (exists): %s" % target.name)
+                continue
+            prompt = " ".join(x for x in (entry["body"], style, VIEWS[view] + ".", MESH_SAFE) if x)
+            if args.dry_run:
+                print("[%s %s]\n  %s\n" % (entry["name"], view, prompt))
+                continue
+            print("%-18s %-6s ..." % (entry["name"], view), end=" ", flush=True)
+            try:
+                record = generate(prompt, target, key, args.model, args.width, args.height, args.seed)
+            except SystemExit as exc:
+                print("FAILED: %s" % exc)
+                failed.append(entry["name"])
+                continue
+            record["creature"] = entry["name"]
+            record["target_aspect"] = entry.get("aspect")
+            records.append(record)
+            total += record["cost_credits"] or 0
+            print("%s credits, %s" % (record["cost_credits"], record["cutout"]))
+
+    if args.dry_run:
+        return 0
+
+    (args.out / "roster.json").write_text(json.dumps({"images": records}, indent=2) + "\n")
+    print("\n%d image(s), %.0f credits (~$%.2f) -> %s" % (len(records), total, total * 0.01, args.out))
+    if failed:
+        print("failed: %s" % ", ".join(failed))
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--prompt", help="the character description, without view or lighting")
     source.add_argument("--prompt-file", type=Path, help="read the description from a file")
+    source.add_argument("--roster", type=Path,
+                        help="a roster JSON; generates every creature in it into --out as a directory")
     parser.add_argument("--out", type=Path, required=True, help="output prefix, e.g. concept/cskele")
     parser.add_argument("--views", default="front,side",
                         help="comma-separated subset of: %s" % ", ".join(VIEWS))
@@ -108,11 +211,15 @@ def main(argv=None):
     parser.add_argument("--height", type=int, default=1440)
     parser.add_argument("--seed", type=int, help="fixed seed, so the two views match better")
     parser.add_argument("--dry-run", action="store_true", help="print the prompts, call nothing")
+    parser.add_argument("--force", action="store_true", help="regenerate images that already exist")
     args = parser.parse_args(argv)
 
     key = os.environ.get("BFL_API_KEY")
     if not key and not args.dry_run:
         parser.error("BFL_API_KEY is not set")
+
+    if args.roster:
+        return run_roster(args, key)
 
     base = (args.prompt_file.read_text().strip() if args.prompt_file else args.prompt)
     views = [v.strip() for v in args.views.split(",") if v.strip()]
@@ -133,7 +240,7 @@ def main(argv=None):
         record = generate(prompt, target, key, args.model, args.width, args.height, args.seed)
         records.append(record)
         total += record["cost_credits"] or 0
-        print("  %s  (%s credits)" % (target, record["cost_credits"]))
+        print("  %s  (%s credits, %s)" % (target, record["cost_credits"], record["cutout"]))
 
     if args.dry_run:
         return 0
