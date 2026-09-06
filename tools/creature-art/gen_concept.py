@@ -147,6 +147,26 @@ def generate(prompt, out_path, key, model, width, height, seed):
     }
 
 
+# Image models spread a character out — planted stance, arms away from the body,
+# wings open. Heroes III creatures are compact because they sit on a hex, so every
+# prompt states the target proportion explicitly. The phrasing is derived from the
+# original's measured width-to-height rather than written per creature.
+COMPACTNESS = "Limbs held close to the body. Do not spread or open the pose."
+
+
+def proportion_hint(aspect):
+    """State the target proportion as a ratio, not an adjective.
+
+    Adjectives backfire: "broad and low" for a 0.76 creature made FLUX spread the
+    bone dragon's wings and pushed it to 1.15. A number carries the constraint
+    without suggesting a pose.
+    """
+    if aspect is None:
+        return COMPACTNESS
+    return ("The whole silhouette fits in a box about %.1f times as tall as it is "
+            "wide. %s" % (1.0 / aspect, COMPACTNESS))
+
+
 def load_roster(path):
     import re
     raw = path.read_text()
@@ -168,7 +188,9 @@ def run_roster(args, key):
             if target.exists() and not args.force:
                 print("skip (exists): %s" % target.name)
                 continue
-            prompt = " ".join(x for x in (entry["body"], style, VIEWS[view] + ".", MESH_SAFE) if x)
+            prompt = " ".join(x for x in (
+                entry["body"], style, proportion_hint(entry.get("aspect")),
+                VIEWS[view] + ".", MESH_SAFE) if x)
             if args.dry_run:
                 print("[%s %s]\n  %s\n" % (entry["name"], view, prompt))
                 continue

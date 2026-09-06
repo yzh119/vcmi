@@ -1,5 +1,6 @@
 {
   "_comment": "Necropolis roster. `aspect` is the original's width-to-height at idle, measured with def_extract.py; it is the gate preview.py readability checks a concept against. `body` is the per-creature half of the prompt; the shared style and backdrop requirements are appended by gen_concept.py.",
+  "_moderation": "FLUX rejects graphic decay wording (\"rotting flesh\", \"dried blood\", \"bloated\") as Violence. The undead entries are worded around it: desiccated, drawn tight, tattered. Keep it that way.",
   "_style": "Painterly stylised realism, not photoreal, detail subordinated to shape. Bold readable silhouette, three strong value masses, thick simplified forms. Compact upright framing.",
 
   "creatures": [
@@ -10,10 +11,10 @@
       "body": "Stylised fantasy armoured skeleton warrior, rusted iron helm and shoulder plates over bare bone, round shield held close to the chest, sword low across the body, hunched forward stance. Desaturated bone and dark oxidised iron." },
 
     { "name": "walkingDead", "def": "CZOMBI.DEF", "aspect": 0.45,
-      "body": "Stylised fantasy walking corpse, bloated grey-green rotting flesh, tattered rags, arms hanging heavy and forward, head lolling to one side, shambling forward step, narrow slumped silhouette. Sickly grey-green and dull brown." },
+      "body": "Stylised fantasy undead figure, desiccated grey-green skin drawn tight over the frame, tattered rags, arms hanging heavy and forward, head tilted to one side, shambling forward step, narrow slumped silhouette. Sickly grey-green and dull brown." },
 
     { "name": "zombieLord", "def": "CZOMLO.DEF", "aspect": 0.46,
-      "body": "Stylised fantasy zombie lord, larger and broader than a common corpse, grey-green rotting flesh over heavy shoulders, remnants of a leather harness, arms hanging forward, slumped heavy stance. Sickly grey-green, dull brown, a little dried blood." },
+      "body": "Stylised fantasy undead lord, larger and broader than a common one, desiccated grey-green skin over heavy shoulders, remnants of a leather harness, arms hanging forward, slumped heavy stance. Sickly grey-green and dull brown." },
 
     { "name": "wight", "def": "CWIGHT.DEF", "aspect": 0.33,
       "body": "Stylised fantasy wight, a tall narrow hooded spectral figure, long ragged robe falling straight to a frayed hem with no legs visible, hollow dark void inside the hood, thin skeletal hands emerging from the sleeves, arms held close. Very tall and narrow silhouette, roughly three times as tall as wide. Cold desaturated grey-blue and bone." },
