@@ -341,7 +341,48 @@ def check_drift(report, creature, scale, sprites_root, groups):
             )
 
 
-def validate_creature(report, creature, variants, is_shooter):
+def check_against_original(report, creature, groups, lod_path, def_name):
+    """Compare group coverage and frame counts against the .def being replaced.
+
+    The cross-scale checks only prove the replacement agrees with itself. The
+    original is sitting on disk, and the first zombie shipped with twelve of
+    thirteen groups at the wrong frame count -- inherited from the skeleton -- with
+    every other check passing.
+
+    A different count is legal: a JSON sequence replaces a group wholesale. So this
+    reports rather than fails, but it reports loudly enough to be a decision.
+    """
+    try:
+        from def_extract import DefFile, extract, read_lod
+    except ImportError:
+        return
+    try:
+        blob, entries = read_lod(lod_path)
+        name = def_name if def_name.upper().endswith(".DEF") else def_name + ".DEF"
+        original = DefFile(extract(blob, entries, name))
+    except SystemExit as exc:
+        report.warn(creature, "could not read the original: %s" % exc)
+        return
+
+    for gid in sorted(groups):
+        mine = len(groups[gid])
+        theirs = len(original.groups.get(gid, []))
+        if theirs == 0:
+            report.info(creature, "group %s is not in the original" % group_label(gid))
+        elif mine != theirs:
+            report.warn(
+                creature,
+                "group %s has %d frames, the original has %d -- legal, but check it "
+                "is deliberate" % (group_label(gid), mine, theirs))
+
+    missing = [g for g in original.groups if g in GROUP_NAMES and g not in groups]
+    if missing:
+        report.info(
+            creature,
+            "the original also has %s; those fall back to the .def"
+            % ", ".join(group_label(g) for g in sorted(missing)))
+
+def validate_creature(report, creature, variants, is_shooter, lod=None):
     scales = sorted(variants)
     if 1 not in scales:
         report.error(
@@ -362,6 +403,8 @@ def validate_creature(report, creature, variants, is_shooter):
         results[scale] = (groups, canvas, frame_names)
         if scale == 1:
             base_canvas = canvas
+            if lod:
+                check_against_original(report, creature, groups, lod, creature)
 
     # -- cross-scale agreement -------------------------------------------
     if 1 in results:
@@ -406,6 +449,8 @@ def main(argv=None):
         default="",
         help="comma-separated animation names that need the SHOOT_* groups",
     )
+    parser.add_argument("--lod", help="archive of the originals, to compare group coverage "
+                                      "and frame counts against the .def being replaced")
     parser.add_argument("--json", action="store_true", help="emit findings as JSON")
     parser.add_argument("--quiet", action="store_true", help="suppress info-level findings")
     args = parser.parse_args(argv)
@@ -424,7 +469,7 @@ def main(argv=None):
         return 1
 
     for creature in sorted(creatures):
-        validate_creature(report, creature, creatures[creature], creature in shooters)
+        validate_creature(report, creature, creatures[creature], creature in shooters, args.lod)
 
     entries = report.entries
     if args.quiet:
