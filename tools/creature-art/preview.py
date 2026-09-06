@@ -10,6 +10,7 @@ ground line the engine anchors to.
     layers   body / shadow / overlay for a single frame
     anim     animated GIF of one group, at the game's own frame rate
     compare  original and replacement side by side, frame for frame
+    readability  does a concept image still read at the size the game draws it?
 
 Frames come from either an original .def inside a .lod:
 
@@ -38,7 +39,7 @@ from vcmi_anim import (  # noqa: E402
 )
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFilter
 except ImportError:
     sys.exit("preview.py needs Pillow: pip install pillow")
 
@@ -282,6 +283,169 @@ def cmd_compare(args):
     return 0
 
 
+def key_background(image, tolerance=28):
+    """Give an opaque image an alpha channel by keying out its backdrop.
+
+    Concept art from an image API arrives on a backdrop, not as a cutout. Without
+    this the "silhouette" is the whole rectangle and every score is meaningless.
+
+    The key is global colour distance, not a flood fill from the border. Negative
+    space enclosed by the character -- between the legs, inside a bent arm, under a
+    sword held across the body -- is not reachable from the frame edge, and a flood
+    fill leaves it filled in. Those gaps are exactly what a silhouette-first design
+    lives or dies by, so they have to be cut.
+
+    This requires the backdrop to be a flat colour the subject does not contain;
+    gen_concept.py asks for chroma green for that reason. A near-neutral or gradient
+    backdrop cannot be keyed this way and should be regenerated rather than fought.
+    """
+    rgb = image.convert("RGB")
+    w, h = rgb.size
+    pixels = rgb.load()
+
+    border = ([pixels[x, 0] for x in range(0, w, 4)] +
+              [pixels[x, h - 1] for x in range(0, w, 4)] +
+              [pixels[0, y] for y in range(0, h, 4)] +
+              [pixels[w - 1, y] for y in range(0, h, 4)])
+    bg = tuple(sorted(c[i] for c in border)[len(border) // 2] for i in range(3))
+
+    keyed = image.copy()
+    out = keyed.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, _ = out[x, y]
+            if abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) <= tolerance:
+                out[x, y] = (r, g, b, 0)
+    return keyed, bg
+
+
+def silhouette(image, threshold=0, despeckle=True):
+    """Binary alpha mask, trimmed to content.
+
+    Keying a backdrop leaves a scatter of stray pixels at the frame edges. They are
+    invisible, but they stretch the bounding box to the full image, and everything
+    downstream scales by that box -- the character ends up a few pixels tall inside a
+    huge mask and every score collapses. An opening removes specks before measuring.
+    """
+    alpha = image.getchannel("A").point(lambda v: 255 if v > threshold else 0)
+    if despeckle:
+        alpha = alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+    box = alpha.getbbox()
+    if box is None:
+        raise SystemExit("image is fully transparent (or nothing survived despeckling)")
+    return alpha.crop(box)
+
+
+def fit_height(mask, height):
+    """Scale a mask so it is `height` px tall, preserving aspect."""
+    width = max(1, round(mask.width * height / mask.height))
+    return mask.resize((width, height), Image.LANCZOS).point(lambda v: 255 if v > 127 else 0)
+
+
+def silhouette_iou(a, b):
+    """Overlap of two masks after centring them on a shared canvas."""
+    w, h = max(a.width, b.width), max(a.height, b.height)
+    canvas = []
+    for mask in (a, b):
+        plate = Image.new("L", (w, h), 0)
+        plate.paste(mask, ((w - mask.width) // 2, h - mask.height))
+        canvas.append(plate)
+    pa, pb = canvas[0].getdata(), canvas[1].getdata()
+    inter = sum(1 for x, y in zip(pa, pb) if x and y)
+    union = sum(1 for x, y in zip(pa, pb) if x or y)
+    return inter / union if union else 0.0
+
+
+def cmd_readability(args):
+    """Does a concept image still read at the size the game actually draws it?"""
+    with Image.open(args.image) as raw:
+        candidate = raw.convert("RGBA")
+
+    keyed_note = None
+    opaque = candidate.getchannel("A").getextrema() == (255, 255)
+    if args.background == "key" or (args.background == "auto" and opaque):
+        candidate, bg = key_background(candidate, args.bg_tolerance)
+        keyed_note = "keyed out background #%02X%02X%02X" % bg
+        if candidate.getchannel("A").getextrema()[0] == 255:
+            raise SystemExit(
+                "background keying removed nothing -- the backdrop is not flat. "
+                "Cut the character out first, or raise --bg-tolerance.")
+    elif opaque:
+        raise SystemExit(
+            "image is fully opaque, so its silhouette would be the whole rectangle. "
+            "Use --background key, or supply a cutout with alpha.")
+
+    mask = silhouette(candidate)
+    box = candidate.getchannel("A").getbbox()
+    art = candidate.crop(box)
+
+    scaled = {}
+    for factor in (1, 2, 4):
+        height = args.height * factor
+        width = max(1, round(art.width * height / art.height))
+        scaled[factor] = art.resize((width, height), Image.LANCZOS)
+
+    strip = [("%dx" % f, flatten(img)) for f, img in sorted(scaled.items())]
+    sil_1x = fit_height(mask, args.height)
+    sil_plate = Image.new("RGBA", sil_1x.size, (28, 28, 33, 255))
+    sil_plate.paste((235, 235, 240, 255), mask=sil_1x)
+    strip.append(("silhouette 1x", sil_plate))
+
+    verdict = []
+    if args.against:
+        gid = resolve_group(args.against_group)
+        originals = frames_from_def(args.lod, args.against, gid, "body")
+        original = originals[min(args.against_frame, len(originals) - 1)]
+        orig_sil = silhouette(original)
+        orig_mask = fit_height(orig_sil, args.height)
+        orig_plate = Image.new("RGBA", orig_mask.size, (28, 28, 33, 255))
+        orig_plate.paste((235, 235, 240, 255), mask=orig_mask)
+        strip.append(("original 1x", orig_plate))
+
+        # Proportion is the pose-independent half of the comparison, and the half
+        # that actually has to match: the engine draws both into the same hex.
+        cand_aspect = mask.width / mask.height
+        orig_aspect = orig_sil.width / orig_sil.height
+        drift = (cand_aspect / orig_aspect - 1) * 100
+        verdict.append("proportions: candidate %.2f wide-to-tall, original %.2f (%+.0f%%)"
+                       % (cand_aspect, orig_aspect, drift))
+        if abs(drift) <= 15:
+            verdict.append("  within 15% -- it will occupy its hex like the original does")
+        else:
+            verdict.append("  more than 15%% off; %s than the original at the same height"
+                           % ("wider" if drift > 0 else "narrower"))
+
+        # Overlap is pose-dependent, so it is a weak signal at concept stage: a free
+        # pose is being compared against one specific animation frame, and facing
+        # alone can halve it. Take the better of the two mirrorings and report it as
+        # an indication, not a gate. It becomes the real test later, when rendered
+        # frames are compared against the original frame they replace.
+        best = max(silhouette_iou(sil_1x, orig_mask),
+                   silhouette_iou(sil_1x.transpose(Image.FLIP_LEFT_RIGHT), orig_mask))
+        verdict.append("silhouette overlap (best of both facings): %.0f%%" % (best * 100))
+        verdict.append("  indicative only at concept stage -- pose differences dominate.")
+        verdict.append("  Judge the 1x tile by eye; the number is the gate for rendered frames.")
+
+    gap, pad = 14, 26
+    height = max(img.height for _, img in strip) + pad + 8
+    width = sum(img.width for _, img in strip) + gap * (len(strip) + 1)
+    sheet = Image.new("RGBA", (width, height), PAGE)
+    pen = ImageDraw.Draw(sheet)
+    x = gap
+    for label, img in strip:
+        sheet.alpha_composite(img, (x, pad + (height - pad - 8 - img.height)))
+        pen.text((x, 6), label, fill=LABEL)
+        x += img.width + gap
+    sheet.save(args.out)
+
+    print("%s -> %s" % (args.image, args.out))
+    print("  creature drawn at %d px tall; source art is %dx%d" % (args.height, art.width, art.height))
+    if keyed_note:
+        print("  " + keyed_note)
+    for line in verdict:
+        print("  " + line)
+    return 0
+
 def add_source(parser, allow_mod=True):
     source = parser.add_argument_group("frame source")
     source.add_argument("--lod", type=Path, help="path to H3sprite.lod")
@@ -332,6 +496,23 @@ def main(argv=None):
     anim.add_argument("--anchor", action="store_true")
     anim.set_defaults(func=cmd_anim)
 
+    read = sub.add_parser(
+        "readability", help="does a concept image still read at in-game size?")
+    read.add_argument("image", help="candidate concept art (PNG with alpha)")
+    read.add_argument("--height", type=int, default=79,
+                      help="height in px the creature occupies in game (CSKELE idle: 79)")
+    read.add_argument("--out", default="readability.png")
+    read.add_argument("--lod", type=Path, help="archive, to compare against the original")
+    read.add_argument("--against", help="original def to compare against, e.g. CSKELE.DEF")
+    read.add_argument("--against-group", default="HOLDING")
+    read.add_argument("--against-frame", type=int, default=0)
+    read.add_argument("--background", choices=["auto", "key", "alpha"], default="auto",
+                      help="auto: key out a flat backdrop when the image has no alpha "
+                           "(default); key: always; alpha: trust the alpha channel")
+    read.add_argument("--bg-tolerance", type=int, default=28,
+                      help="how close to the backdrop colour still counts as background")
+    read.set_defaults(func=cmd_readability)
+
     compare = sub.add_parser("compare", help="original vs replacement, frame for frame")
     add_source(compare)
     compare.add_argument("--out", default="compare.png")
@@ -340,7 +521,10 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    if args.command == "compare":
+    if args.command == "readability":
+        if bool(args.against) != bool(args.lod):
+            parser.error("--against needs --lod (and vice versa)")
+    elif args.command == "compare":
         if not (args.lod and args.definition and args.mod and args.creature):
             parser.error("compare needs --lod, --def, --mod and --creature")
     else:
