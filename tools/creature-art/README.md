@@ -205,6 +205,44 @@ Pass `--canvas` and `--layout` instead if you are working from something other t
 original `.def`. VCMI's launcher also ships `vcmiextract` and `def2json` in the
 modders-tool-pack, which cover the same ground with more formats.
 
+### Look at it
+
+`preview.py` renders the views that make animation problems visible. Frames are
+450x400 with the creature in one corner, so opening the PNGs directly tells you very
+little; every view crops to the action and keeps all frames on a **shared** crop, so
+motion between frames stays visible instead of being cropped away.
+
+```bash
+LOD=~/"Library/Application Support/vcmi/Data/H3sprite.lod"
+
+# contact sheet of a group, with the ground line drawn
+python3 tools/creature-art/preview.py sheet \
+    --lod "$LOD" --def CSKELE.DEF --group HOLDING --anchor --numbers --out holding.png
+
+# body / shadow / overlay for one frame
+python3 tools/creature-art/preview.py layers \
+    --lod "$LOD" --def CSKELE.DEF --group HOLDING --frame 0 --out layers.png
+
+# animated GIF -- the only way to actually see bobbing
+python3 tools/creature-art/preview.py anim \
+    --lod "$LOD" --def CSKELE.DEF --group MOVING --anchor --fps 8 --out moving.gif
+
+# your replacement against the original, frame for frame
+python3 tools/creature-art/preview.py compare \
+    --lod "$LOD" --def CSKELE.DEF \
+    --mod ~/vcmi-mods/hd-creatures --creature CSKELE --group HOLDING --out compare.png
+```
+
+Any view can read from a mod instead of a `.def` — swap `--lod/--def` for
+`--mod/--creature`, and add `--mod-scale 2` to inspect the 2x tree. `--layer shadow`
+or `--layer overlay` inspects the other two layers.
+
+With `--anchor`, the red line is the ground line the engine anchors to and the blue
+line is the body centre. In the original `CSKELE` idle loop the feet sit exactly on
+the red line in all eight frames — that is the target your renders have to hit.
+
+`preview.py` needs Pillow (`pip install pillow`).
+
 ### Validate
 
 ```bash
@@ -216,9 +254,22 @@ Add `--shooter CARCHER,CMAGE` for creatures that need the `SHOOT_*` groups, and
 
 Core checks are stdlib-only (PNG dimensions and colour type are read straight from
 the IHDR chunk). Installing Pillow additionally enables **anchor-drift analysis** —
-per-group alpha bounding boxes, reporting how far the ground line and horizontal
-centroid wander across a group. That is the check that catches a creature which
-looks fine frame-by-frame but bobs when animated.
+per-group alpha bounding boxes, reporting how far the ground line wanders across a
+group. That is the check that catches a creature which looks fine frame-by-frame but
+bobs when animated.
+
+The drift thresholds are calibrated against the original art rather than guessed.
+Running the validator over `CSKELE`'s own frames reports zero errors and zero
+warnings, which is the property that makes the check trustworthy:
+
+- **Idle groups are judged by the ground line alone.** The bounding-box centre moves
+  for legitimate reasons — `MOUSEON` raises its sword from horizontal to vertical,
+  shifting the centre 9px while the feet never move a pixel. Centre movement in an
+  idle group is reported as a note, not a warning.
+- **Action groups get no absolute threshold at all.** A lunge moves the ground line
+  and a weapon swing drags the centre far outside the body; `ATTACK_FRONT` alone
+  drifts 50px of centre in the original. The numbers are reported so you can compare
+  them against the original, which is the only meaningful baseline.
 
 ```bash
 pip install pillow    # optional
