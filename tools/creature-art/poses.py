@@ -48,6 +48,43 @@ def _keys(*pairs):
 # Each group: how many frames the original uses, whether it loops, and the
 # deltas added to BASE at each normalised time.
 GROUPS = {
+    # Walk cycle. The original's ground line moves about 5 px across this group,
+    # so the feet are allowed to leave it -- unlike the idle, which the validator
+    # holds to two.
+    "MOVING": {
+        "frames": 8, "loop": True,
+        "keys": _keys(
+            (0.0,   {"RightUpLeg": (-28, 0, 0), "RightLeg": (10, 0, 0), "RightFoot": (8, 0, 0),
+                     "LeftUpLeg": (26, 0, 0), "LeftLeg": (-34, 0, 0), "LeftFoot": (6, 0, 0),
+                     "RightArm": (18, 0, 0), "LeftArm": (-18, 0, 0),
+                     "Spine02": (2, 0, 0), "Hips": (0, 0, -5)}),
+            (0.25,  {"RightUpLeg": (-6, 0, 0), "RightLeg": (-14, 0, 0),
+                     "LeftUpLeg": (4, 0, 0), "LeftLeg": (-18, 0, 0),
+                     "Hips": (-3, 0, 0)}),
+            (0.5,   {"RightUpLeg": (26, 0, 0), "RightLeg": (-34, 0, 0), "RightFoot": (6, 0, 0),
+                     "LeftUpLeg": (-28, 0, 0), "LeftLeg": (10, 0, 0), "LeftFoot": (8, 0, 0),
+                     "RightArm": (-18, 0, 0), "LeftArm": (18, 0, 0),
+                     "Spine02": (2, 0, 0), "Hips": (0, 0, 5)}),
+            (0.75,  {"RightUpLeg": (4, 0, 0), "RightLeg": (-18, 0, 0),
+                     "LeftUpLeg": (-6, 0, 0), "LeftLeg": (-14, 0, 0),
+                     "Hips": (-3, 0, 0)}),
+        ),
+    },
+
+    # Short lead-in and lead-out the engine plays around MOVING.
+    "MOVE_START": {
+        "frames": 2, "loop": False,
+        "keys": _keys((0.0, {}), (1.0, {"RightUpLeg": (-14, 0, 0), "RightLeg": (4, 0, 0),
+                                        "LeftUpLeg": (12, 0, 0), "LeftLeg": (-18, 0, 0),
+                                        "Spine02": (4, 0, 0)})),
+    },
+    "MOVE_END": {
+        "frames": 2, "loop": False,
+        "keys": _keys((0.0, {"RightUpLeg": (-14, 0, 0), "RightLeg": (4, 0, 0),
+                             "LeftUpLeg": (12, 0, 0), "LeftLeg": (-18, 0, 0),
+                             "Spine02": (4, 0, 0)}), (1.0, {})),
+    },
+
     # Idle. The feet must not move: the original holds its ground line to the
     # pixel across all eight frames, and the validator checks exactly that.
     "HOLDING": {
