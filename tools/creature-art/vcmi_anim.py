@@ -226,3 +226,29 @@ def parse_animation(config):
         )
 
     return groups
+
+
+# ---------------------------------------------------------------------------
+# Minimal PNG writer (RGBA, 8-bit, non-interlaced)
+# ---------------------------------------------------------------------------
+
+def write_png(path, width, height, rgba):
+    """Write `rgba` (width*height*4 bytes, row-major) as an RGBA PNG."""
+    import zlib
+
+    def chunk(kind, payload):
+        body = kind + payload
+        return struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    stride = width * 4
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)  # filter type: none
+        raw += rgba[y * stride:(y + 1) * stride]
+
+    Path(path).write_bytes(
+        _PNG_SIG
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+        + chunk(b"IEND", b"")
+    )
