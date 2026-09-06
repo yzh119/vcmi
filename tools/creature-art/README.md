@@ -147,27 +147,63 @@ Multi-target attacks resolve through a fallback chain
 
 ## Usage
 
+### Read the original
+
+Everything downstream needs the original `.def`'s numbers. `def_extract.py` reads them
+straight out of the game's `.lod`:
+
+```bash
+LOD=~/"Library/Application Support/vcmi/Data/H3sprite.lod"
+python3 tools/creature-art/def_extract.py info "$LOD" CSKELE.DEF --anchor
+```
+
+```
+group                      frames  canvas
+0 (MOVING)                      8  450x400
+1 (MOUSEON)                    11  450x400
+2 (HOLDING)                     8  450x400
+...
+canvas: 450x400 (all groups agree)
+
+ground line and horizontal centre of the body pixels, per group:
+group                        bottom   centre   spread
+2 (HOLDING)                   267.0    197.0      0.0
+12 (ATTACK_FRONT)             267.5    207.8      3.0
+```
+
+That last table is the camera brief: the skeleton stands on **y = 267** in a **450x400**
+canvas, and the idle groups hold that ground line to the pixel (`spread 0.0`). Match it
+and the replacement lands exactly where the original did.
+
+`export` writes reference frames as PNG, pre-split into the three layers the engine
+wants back — H3 stores them in reserved palette indices, and this undoes that:
+
+```bash
+python3 tools/creature-art/def_extract.py export "$LOD" CSKELE.DEF --out ref/cskele
+# ref/cskele/{body,shadow,overlay}/holding_00.png ... + layout.json
+```
+
 ### Scaffold a creature
 
 ```bash
 python3 tools/creature-art/new_creature_mod.py \
     --mod-dir  ~/vcmi-mods/hd-creatures \
-    --creature CSKELET \
-    --canvas   116x104 \
-    --scales   1,2 \
-    --layout   tools/creature-art/layouts/melee.json
+    --creature CSKELE \
+    --from-def "$LOD" \
+    --scales   1,2
 ```
 
-This writes `mod.json`, the per-scale animation JSON, and the (empty) frame
-directories your renderer should fill. Frame filenames are derived from the layout,
-so the renderer's output naming is fixed up front.
+`--from-def` takes the canvas and per-group frame counts from the original, so nothing
+is typed by hand. It writes `mod.json`, the per-scale animation JSON, the (empty) frame
+directories, and a render manifest listing every expected filename — so the renderer's
+output naming is fixed up front.
 
-Canvas size and frame counts should come from the `.def` you are replacing. Extract
-them with the in-game console (`client/ClientCommandManager.cpp:700-703`):
+Groups the engine does not know are skipped with a note; `CSKELE` has groups 9 and 10,
+documented as unused duplicates of `TURN_L`/`TURN_R`.
 
-```
-def2bmp CSKELET.def
-```
+Pass `--canvas` and `--layout` instead if you are working from something other than an
+original `.def`. VCMI's launcher also ships `vcmiextract` and `def2json` in the
+modders-tool-pack, which cover the same ground with more formats.
 
 ### Validate
 
@@ -192,8 +228,8 @@ pip install pillow    # optional
 
 - [x] Mod scaffold + animation JSON generation
 - [x] Layout / canvas / anchor validator
-- [ ] `.def` introspection — read canvas size, margins and frame counts directly
-      instead of passing them by hand
+- [x] `.def` introspection — canvas, frame counts, anchors and layered reference frames
+      read directly from the game's `.lod`
 - [ ] Render-side: 3D reconstruction → rig → batch render at the H3 camera angle
 - [ ] Shadow and overlay render passes wired into the same manifest
 - [ ] Side-by-side comparison sheet (original vs. replacement) for art review
