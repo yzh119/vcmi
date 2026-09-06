@@ -10,6 +10,7 @@ ground line the engine anchors to.
     layers   body / shadow / overlay for a single frame
     anim     animated GIF of one group, at the game's own frame rate
     compare  original and replacement side by side, frame for frame
+    readability  does a concept image still read at the size the game draws it?
 
 Frames come from either an original .def inside a .lod:
 
@@ -282,6 +283,88 @@ def cmd_compare(args):
     return 0
 
 
+def silhouette(image, threshold=0):
+    """Binary alpha mask, trimmed to content."""
+    alpha = image.getchannel("A").point(lambda v: 255 if v > threshold else 0)
+    box = alpha.getbbox()
+    if box is None:
+        raise SystemExit("image is fully transparent")
+    return alpha.crop(box)
+
+
+def fit_height(mask, height):
+    """Scale a mask so it is `height` px tall, preserving aspect."""
+    width = max(1, round(mask.width * height / mask.height))
+    return mask.resize((width, height), Image.LANCZOS).point(lambda v: 255 if v > 127 else 0)
+
+
+def silhouette_iou(a, b):
+    """Overlap of two masks after centring them on a shared canvas."""
+    w, h = max(a.width, b.width), max(a.height, b.height)
+    canvas = []
+    for mask in (a, b):
+        plate = Image.new("L", (w, h), 0)
+        plate.paste(mask, ((w - mask.width) // 2, h - mask.height))
+        canvas.append(plate)
+    pa, pb = canvas[0].getdata(), canvas[1].getdata()
+    inter = sum(1 for x, y in zip(pa, pb) if x and y)
+    union = sum(1 for x, y in zip(pa, pb) if x or y)
+    return inter / union if union else 0.0
+
+
+def cmd_readability(args):
+    """Does a concept image still read at the size the game actually draws it?"""
+    with Image.open(args.image) as raw:
+        candidate = raw.convert("RGBA")
+
+    mask = silhouette(candidate)
+    box = candidate.getchannel("A").getbbox()
+    art = candidate.crop(box)
+
+    scaled = {}
+    for factor in (1, 2, 4):
+        height = args.height * factor
+        width = max(1, round(art.width * height / art.height))
+        scaled[factor] = art.resize((width, height), Image.LANCZOS)
+
+    strip = [("%dx" % f, flatten(img)) for f, img in sorted(scaled.items())]
+    sil_1x = fit_height(mask, args.height)
+    sil_plate = Image.new("RGBA", sil_1x.size, (28, 28, 33, 255))
+    sil_plate.paste((235, 235, 240, 255), mask=sil_1x)
+    strip.append(("silhouette 1x", sil_plate))
+
+    verdict = []
+    if args.against:
+        gid = resolve_group(args.against_group)
+        originals = frames_from_def(args.lod, args.against, gid, "body")
+        original = originals[min(args.against_frame, len(originals) - 1)]
+        orig_mask = fit_height(silhouette(original), args.height)
+        orig_plate = Image.new("RGBA", orig_mask.size, (28, 28, 33, 255))
+        orig_plate.paste((235, 235, 240, 255), mask=orig_mask)
+        strip.append(("original 1x", orig_plate))
+        iou = silhouette_iou(sil_1x, orig_mask)
+        verdict.append("silhouette overlap with the original: %.0f%%" % (iou * 100))
+        verdict.append("  >=70% reads as the same unit; 50-70% is a redesign that still fits;")
+        verdict.append("  <50% will not be recognised on its hex.")
+
+    gap, pad = 14, 26
+    height = max(img.height for _, img in strip) + pad + 8
+    width = sum(img.width for _, img in strip) + gap * (len(strip) + 1)
+    sheet = Image.new("RGBA", (width, height), PAGE)
+    pen = ImageDraw.Draw(sheet)
+    x = gap
+    for label, img in strip:
+        sheet.alpha_composite(img, (x, pad + (height - pad - 8 - img.height)))
+        pen.text((x, 6), label, fill=LABEL)
+        x += img.width + gap
+    sheet.save(args.out)
+
+    print("%s -> %s" % (args.image, args.out))
+    print("  creature drawn at %d px tall; source art is %dx%d" % (args.height, art.width, art.height))
+    for line in verdict:
+        print("  " + line)
+    return 0
+
 def add_source(parser, allow_mod=True):
     source = parser.add_argument_group("frame source")
     source.add_argument("--lod", type=Path, help="path to H3sprite.lod")
@@ -332,6 +415,18 @@ def main(argv=None):
     anim.add_argument("--anchor", action="store_true")
     anim.set_defaults(func=cmd_anim)
 
+    read = sub.add_parser(
+        "readability", help="does a concept image still read at in-game size?")
+    read.add_argument("image", help="candidate concept art (PNG with alpha)")
+    read.add_argument("--height", type=int, default=79,
+                      help="height in px the creature occupies in game (CSKELE idle: 79)")
+    read.add_argument("--out", default="readability.png")
+    read.add_argument("--lod", type=Path, help="archive, to compare against the original")
+    read.add_argument("--against", help="original def to compare against, e.g. CSKELE.DEF")
+    read.add_argument("--against-group", default="HOLDING")
+    read.add_argument("--against-frame", type=int, default=0)
+    read.set_defaults(func=cmd_readability)
+
     compare = sub.add_parser("compare", help="original vs replacement, frame for frame")
     add_source(compare)
     compare.add_argument("--out", default="compare.png")
@@ -340,7 +435,10 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    if args.command == "compare":
+    if args.command == "readability":
+        if bool(args.against) != bool(args.lod):
+            parser.error("--against needs --lod (and vice versa)")
+    elif args.command == "compare":
         if not (args.lod and args.definition and args.mod and args.creature):
             parser.error("compare needs --lod, --def, --mod and --creature")
     else:

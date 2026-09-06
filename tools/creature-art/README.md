@@ -231,7 +231,17 @@ python3 tools/creature-art/preview.py anim \
 python3 tools/creature-art/preview.py compare \
     --lod "$LOD" --def CSKELE.DEF \
     --mod ~/vcmi-mods/hd-creatures --creature CSKELE --group HOLDING --out compare.png
+
+# does a concept image still read at the size the game draws it?
+python3 tools/creature-art/preview.py readability concept.png \
+    --height 79 --lod "$LOD" --against CSKELE.DEF --out check.png
 ```
+
+`readability` is the gate a concept has to pass before any mesh work: it renders the
+candidate at 1x / 2x / 4x, extracts its silhouette at in-game size, and scores overlap
+against the original (>=70% reads as the same unit, <50% will not be recognised in
+play). The measured constraints and the chosen style direction for the first creature
+are in [`docs/brief-cskele.md`](docs/brief-cskele.md).
 
 Any view can read from a mod instead of a `.def` — swap `--lod/--def` for
 `--mod/--creature`, and add `--mod-scale 2` to inspect the 2x tree. `--layer shadow`
