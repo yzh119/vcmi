@@ -177,13 +177,54 @@ to find out is under five dollars.
 Lane C is worth running in parallel regardless — it is nearly free and improves everything
 that Lane A will not reach for years.
 
-## Open questions for you
+## Decisions (2026-09-05)
 
-1. **Style**: faithful-but-higher-fidelity, or an actual modern redesign? This decides
-   whether original sprites are conditioning input or merely a silhouette reference.
-2. **Hosted or self-hosted?** Tripo/Meshy are faster to start; Hunyuan3D has no per-asset
-   cost and no terms-of-service exposure on derived assets.
-3. **Scope**: battle animations only, or adventure map and town screens too? The
-   adventure map has different constraints (seamless tiling) not covered by this tooling.
-4. **Distribution**: derived-from-H3 assets cannot be redistributed. Is the deliverable a
-   local conversion tool, or original art that happens to replace H3's?
+Settled by the project owner:
+
+| | |
+|---|---|
+| **Style** | **Modern redesign**, not a faithful high-fidelity upscale. Original sprites are silhouette and anchor reference only, not conditioning input. |
+| **Scope** | **Battle animations only.** No adventure map, no town screens — so the seamless-tiling problem is out of scope entirely. |
+| **Hosting** | **Hosted services**, not self-hosted. Hunyuan3D is off the table for now. |
+| **First target** | **The skeleton (`CSKELE.DEF`) alone**, end to end, before anything else is attempted. |
+
+Two consequences worth naming:
+
+**Redesign makes the licensing question much easier.** Faithful upscaling produces a
+derivative work of Ubisoft's art. A modern redesign that reuses only the silhouette and
+the anchor position is original art that happens to fit H3's layout — distributable as a
+normal mod. This removes the "ship a local conversion tool" constraint that Lane C
+carries. It does not remove the need to keep original pixels out of the generation input;
+`def_extract.py`'s reference frames are for *matching against*, not for feeding to a model.
+
+**Redesign raises the art-direction bar, not the technical one.** With faithful upscaling
+the target is objective — does it look like the original, sharper. With redesign there is
+no target until someone defines one. The concept pass for the skeleton is now the first
+real deliverable, and it gates everything downstream.
+
+### Resulting pipeline for `CSKELE`
+
+Real numbers, read from `H3sprite.lod`:
+
+- canvas **450x400**, all 15 groups agree
+- ground line **y = 267**, held to the pixel across idle groups
+- **82 frames** across the 13 groups the engine knows (groups 9 and 10 are unused
+  duplicates of `TURN_L`/`TURN_R` and are skipped)
+
+Steps:
+
+1. **Concept** — a modern skeleton design, front and side, matching the original
+   silhouette proportions closely enough that it reads as the same unit on the hex.
+2. **Mesh** — Meshy image-to-3D from the concept. Multi-Image-to-3D if the concept is
+   produced as multiple views. ~$0.30-0.60.
+3. **Rig** — the skeleton is humanoid, so Meshy's rigging API works here. Note this is the
+   one creature where that is true; the roster at large needs Tripo.
+4. **Animate** — 13 groups. Library retargeting for `MOVING`/`HOLDING`/`DEATH`; the three
+   `ATTACK_*` directions hand-keyed, since no library matches H3's poses.
+5. **Render** — Blender, orthographic, camera solved by matching against
+   `def_extract.py export` reference frames. Three passes per frame: beauty, shadow
+   catcher, unlit white.
+6. **Validate** — `validate_creature_animation.py`, which will fail loudly on canvas,
+   anchor drift, and missing overlay layers.
+
+Total API spend for this creature: **under $2.**
