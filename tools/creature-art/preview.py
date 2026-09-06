@@ -39,7 +39,7 @@ from vcmi_anim import (  # noqa: E402
 )
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFilter
 except ImportError:
     sys.exit("preview.py needs Pillow: pip install pillow")
 
@@ -283,12 +283,56 @@ def cmd_compare(args):
     return 0
 
 
-def silhouette(image, threshold=0):
-    """Binary alpha mask, trimmed to content."""
+def key_background(image, tolerance=28):
+    """Give an opaque image an alpha channel by keying out its backdrop.
+
+    Concept art from an image API arrives on a backdrop, not as a cutout. Without
+    this the "silhouette" is the whole rectangle and every score is meaningless.
+
+    The key is global colour distance, not a flood fill from the border. Negative
+    space enclosed by the character -- between the legs, inside a bent arm, under a
+    sword held across the body -- is not reachable from the frame edge, and a flood
+    fill leaves it filled in. Those gaps are exactly what a silhouette-first design
+    lives or dies by, so they have to be cut.
+
+    This requires the backdrop to be a flat colour the subject does not contain;
+    gen_concept.py asks for chroma green for that reason. A near-neutral or gradient
+    backdrop cannot be keyed this way and should be regenerated rather than fought.
+    """
+    rgb = image.convert("RGB")
+    w, h = rgb.size
+    pixels = rgb.load()
+
+    border = ([pixels[x, 0] for x in range(0, w, 4)] +
+              [pixels[x, h - 1] for x in range(0, w, 4)] +
+              [pixels[0, y] for y in range(0, h, 4)] +
+              [pixels[w - 1, y] for y in range(0, h, 4)])
+    bg = tuple(sorted(c[i] for c in border)[len(border) // 2] for i in range(3))
+
+    keyed = image.copy()
+    out = keyed.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, _ = out[x, y]
+            if abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) <= tolerance:
+                out[x, y] = (r, g, b, 0)
+    return keyed, bg
+
+
+def silhouette(image, threshold=0, despeckle=True):
+    """Binary alpha mask, trimmed to content.
+
+    Keying a backdrop leaves a scatter of stray pixels at the frame edges. They are
+    invisible, but they stretch the bounding box to the full image, and everything
+    downstream scales by that box -- the character ends up a few pixels tall inside a
+    huge mask and every score collapses. An opening removes specks before measuring.
+    """
     alpha = image.getchannel("A").point(lambda v: 255 if v > threshold else 0)
+    if despeckle:
+        alpha = alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
     box = alpha.getbbox()
     if box is None:
-        raise SystemExit("image is fully transparent")
+        raise SystemExit("image is fully transparent (or nothing survived despeckling)")
     return alpha.crop(box)
 
 
@@ -317,6 +361,20 @@ def cmd_readability(args):
     with Image.open(args.image) as raw:
         candidate = raw.convert("RGBA")
 
+    keyed_note = None
+    opaque = candidate.getchannel("A").getextrema() == (255, 255)
+    if args.background == "key" or (args.background == "auto" and opaque):
+        candidate, bg = key_background(candidate, args.bg_tolerance)
+        keyed_note = "keyed out background #%02X%02X%02X" % bg
+        if candidate.getchannel("A").getextrema()[0] == 255:
+            raise SystemExit(
+                "background keying removed nothing -- the backdrop is not flat. "
+                "Cut the character out first, or raise --bg-tolerance.")
+    elif opaque:
+        raise SystemExit(
+            "image is fully opaque, so its silhouette would be the whole rectangle. "
+            "Use --background key, or supply a cutout with alpha.")
+
     mask = silhouette(candidate)
     box = candidate.getchannel("A").getbbox()
     art = candidate.crop(box)
@@ -338,14 +396,35 @@ def cmd_readability(args):
         gid = resolve_group(args.against_group)
         originals = frames_from_def(args.lod, args.against, gid, "body")
         original = originals[min(args.against_frame, len(originals) - 1)]
-        orig_mask = fit_height(silhouette(original), args.height)
+        orig_sil = silhouette(original)
+        orig_mask = fit_height(orig_sil, args.height)
         orig_plate = Image.new("RGBA", orig_mask.size, (28, 28, 33, 255))
         orig_plate.paste((235, 235, 240, 255), mask=orig_mask)
         strip.append(("original 1x", orig_plate))
-        iou = silhouette_iou(sil_1x, orig_mask)
-        verdict.append("silhouette overlap with the original: %.0f%%" % (iou * 100))
-        verdict.append("  >=70% reads as the same unit; 50-70% is a redesign that still fits;")
-        verdict.append("  <50% will not be recognised on its hex.")
+
+        # Proportion is the pose-independent half of the comparison, and the half
+        # that actually has to match: the engine draws both into the same hex.
+        cand_aspect = mask.width / mask.height
+        orig_aspect = orig_sil.width / orig_sil.height
+        drift = (cand_aspect / orig_aspect - 1) * 100
+        verdict.append("proportions: candidate %.2f wide-to-tall, original %.2f (%+.0f%%)"
+                       % (cand_aspect, orig_aspect, drift))
+        if abs(drift) <= 15:
+            verdict.append("  within 15% -- it will occupy its hex like the original does")
+        else:
+            verdict.append("  more than 15%% off; %s than the original at the same height"
+                           % ("wider" if drift > 0 else "narrower"))
+
+        # Overlap is pose-dependent, so it is a weak signal at concept stage: a free
+        # pose is being compared against one specific animation frame, and facing
+        # alone can halve it. Take the better of the two mirrorings and report it as
+        # an indication, not a gate. It becomes the real test later, when rendered
+        # frames are compared against the original frame they replace.
+        best = max(silhouette_iou(sil_1x, orig_mask),
+                   silhouette_iou(sil_1x.transpose(Image.FLIP_LEFT_RIGHT), orig_mask))
+        verdict.append("silhouette overlap (best of both facings): %.0f%%" % (best * 100))
+        verdict.append("  indicative only at concept stage -- pose differences dominate.")
+        verdict.append("  Judge the 1x tile by eye; the number is the gate for rendered frames.")
 
     gap, pad = 14, 26
     height = max(img.height for _, img in strip) + pad + 8
@@ -361,6 +440,8 @@ def cmd_readability(args):
 
     print("%s -> %s" % (args.image, args.out))
     print("  creature drawn at %d px tall; source art is %dx%d" % (args.height, art.width, art.height))
+    if keyed_note:
+        print("  " + keyed_note)
     for line in verdict:
         print("  " + line)
     return 0
@@ -425,6 +506,11 @@ def main(argv=None):
     read.add_argument("--against", help="original def to compare against, e.g. CSKELE.DEF")
     read.add_argument("--against-group", default="HOLDING")
     read.add_argument("--against-frame", type=int, default=0)
+    read.add_argument("--background", choices=["auto", "key", "alpha"], default="auto",
+                      help="auto: key out a flat backdrop when the image has no alpha "
+                           "(default); key: always; alpha: trust the alpha channel")
+    read.add_argument("--bg-tolerance", type=int, default=28,
+                      help="how close to the backdrop colour still counts as background")
     read.set_defaults(func=cmd_readability)
 
     compare = sub.add_parser("compare", help="original vs replacement, frame for frame")
