@@ -41,6 +41,15 @@ MESH_SAFE = (
 VIEWS = {
     "front": "three-quarter front view",
     "side": "side view, same pose and proportions",
+    # The A-pose seen from the side, for multi-image reconstruction. Single-image
+    # reconstruction fills the negative space between paired bones -- tibia and
+    # fibula merge into one smooth tube -- and more polygons do not bring it back.
+    "aposeside": (
+        "exact side view of a neutral A-pose, facing to the right, "
+        "arms held down and away from the body with clear space between arm and "
+        "torso, legs straight and slightly apart, any weapon held down and out at "
+        "about forty-five degrees clear of the legs, body upright and not hunched"
+    ),
     # A rigging-friendly neutral pose. Auto-riggers estimate a skeleton from the
     # silhouette, and fail when limbs sit against the torso -- which is exactly what
     # the proportion hint asks for. So the mesh is built from this view instead, and
@@ -67,7 +76,7 @@ VIEWS = {
 }
 
 # Views whose whole point is a spread pose; the proportion hint would fight them.
-POSE_VIEWS = {"apose"}
+POSE_VIEWS = {"apose", "aposeside"}
 
 
 def post(path, payload, key):

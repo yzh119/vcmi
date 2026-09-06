@@ -18,6 +18,11 @@ Bone names are the ones Meshy's rig uses (Mixamo lineage):
 
 # The stance shared by every group: weight forward, head ahead of the shoulders,
 # sword arm low and across the body, knees bent.
+#
+# Sign convention trap: leg bones point downward, so local X runs the opposite way
+# from the spine's. Positive X on RightLeg/LeftLeg bends the knee correctly (the
+# foot travels back and up); negative gives a backward-bending knee. The first
+# version had every lower leg negative, and the skeleton read as digitigrade.
 BASE = {
     "Hips":          (-8, 0, 0),
     "Spine02":       (10, 0, 0),
@@ -35,12 +40,12 @@ BASE = {
     "LeftShoulder":  (0, 0, 8),
     "LeftArm":       (-12, -10, 50),
     "LeftForeArm":   (-26, 0, 0),
-    "RightUpLeg":    (14, 0, 0),
-    "RightLeg":      (-26, 0, 0),
-    "RightFoot":     (12, 0, 0),
-    "LeftUpLeg":     (-16, 0, 0),
-    "LeftLeg":       (-18, 0, 0),
-    "LeftFoot":      (10, 0, 0),
+    "RightUpLeg":    (16, 0, 0),
+    "RightLeg":      (10, 0, 0),
+    "RightFoot":     (-6, 0, 0),
+    "LeftUpLeg":     (-14, 0, 0),
+    "LeftLeg":       (8, 0, 0),
+    "LeftFoot":      (4, 0, 0),
 }
 
 
@@ -58,19 +63,19 @@ GROUPS = {
     "MOVING": {
         "frames": 8, "loop": True,
         "keys": _keys(
-            (0.0,   {"RightUpLeg": (-28, 0, 0), "RightLeg": (10, 0, 0), "RightFoot": (8, 0, 0),
-                     "LeftUpLeg": (26, 0, 0), "LeftLeg": (-34, 0, 0), "LeftFoot": (6, 0, 0),
+            (0.0,   {"RightUpLeg": (-28, 0, 0), "RightLeg": (-10, 0, 0), "RightFoot": (8, 0, 0),
+                     "LeftUpLeg": (26, 0, 0), "LeftLeg": (34, 0, 0), "LeftFoot": (6, 0, 0),
                      "RightArm": (18, 0, 0), "LeftArm": (-18, 0, 0),
                      "Spine02": (2, 0, 0), "Hips": (0, 0, -5)}),
-            (0.25,  {"RightUpLeg": (-6, 0, 0), "RightLeg": (-14, 0, 0),
-                     "LeftUpLeg": (4, 0, 0), "LeftLeg": (-18, 0, 0),
+            (0.25,  {"RightUpLeg": (-6, 0, 0), "RightLeg": (14, 0, 0),
+                     "LeftUpLeg": (4, 0, 0), "LeftLeg": (18, 0, 0),
                      "Hips": (-3, 0, 0)}),
-            (0.5,   {"RightUpLeg": (26, 0, 0), "RightLeg": (-34, 0, 0), "RightFoot": (6, 0, 0),
-                     "LeftUpLeg": (-28, 0, 0), "LeftLeg": (10, 0, 0), "LeftFoot": (8, 0, 0),
+            (0.5,   {"RightUpLeg": (26, 0, 0), "RightLeg": (34, 0, 0), "RightFoot": (6, 0, 0),
+                     "LeftUpLeg": (-28, 0, 0), "LeftLeg": (-10, 0, 0), "LeftFoot": (8, 0, 0),
                      "RightArm": (-18, 0, 0), "LeftArm": (18, 0, 0),
                      "Spine02": (2, 0, 0), "Hips": (0, 0, 5)}),
-            (0.75,  {"RightUpLeg": (4, 0, 0), "RightLeg": (-18, 0, 0),
-                     "LeftUpLeg": (-6, 0, 0), "LeftLeg": (-14, 0, 0),
+            (0.75,  {"RightUpLeg": (4, 0, 0), "RightLeg": (18, 0, 0),
+                     "LeftUpLeg": (-6, 0, 0), "LeftLeg": (14, 0, 0),
                      "Hips": (-3, 0, 0)}),
         ),
     },
@@ -78,14 +83,14 @@ GROUPS = {
     # Short lead-in and lead-out the engine plays around MOVING.
     "MOVE_START": {
         "frames": 2, "loop": False,
-        "keys": _keys((0.0, {}), (1.0, {"RightUpLeg": (-14, 0, 0), "RightLeg": (4, 0, 0),
-                                        "LeftUpLeg": (12, 0, 0), "LeftLeg": (-18, 0, 0),
+        "keys": _keys((0.0, {}), (1.0, {"RightUpLeg": (-14, 0, 0), "RightLeg": (-4, 0, 0),
+                                        "LeftUpLeg": (12, 0, 0), "LeftLeg": (18, 0, 0),
                                         "Spine02": (4, 0, 0)})),
     },
     "MOVE_END": {
         "frames": 2, "loop": False,
-        "keys": _keys((0.0, {"RightUpLeg": (-14, 0, 0), "RightLeg": (4, 0, 0),
-                             "LeftUpLeg": (12, 0, 0), "LeftLeg": (-18, 0, 0),
+        "keys": _keys((0.0, {"RightUpLeg": (-14, 0, 0), "RightLeg": (-4, 0, 0),
+                             "LeftUpLeg": (12, 0, 0), "LeftLeg": (18, 0, 0),
                              "Spine02": (4, 0, 0)}), (1.0, {})),
     },
 
@@ -175,12 +180,12 @@ GROUPS = {
                     "RightArm": (-30, 0, 25), "RightForeArm": (-45, 0, 0),
                     "LeftArm": (-25, 0, -25), "LeftForeArm": (-40, 0, 0),
                     "Hips": (10, 0, 0), "RightUpLeg": (12, 0, 0), "LeftUpLeg": (10, 0, 0),
-                    "RightLeg": (-14, 0, 0), "LeftLeg": (-12, 0, 0)}),
+                    "RightLeg": (14, 0, 0), "LeftLeg": (12, 0, 0)}),
             (0.75, {"Spine02": (12, 0, 0), "Spine01": (8, 0, 0), "neck": (10, 0, 0),
                     "RightArm": (-30, 0, 25), "RightForeArm": (-45, 0, 0),
                     "LeftArm": (-25, 0, -25), "LeftForeArm": (-40, 0, 0),
                     "Hips": (10, 0, 0), "RightUpLeg": (12, 0, 0), "LeftUpLeg": (10, 0, 0),
-                    "RightLeg": (-14, 0, 0), "LeftLeg": (-12, 0, 0)}),
+                    "RightLeg": (14, 0, 0), "LeftLeg": (12, 0, 0)}),
             (1.0,  {}),
         ),
     },
@@ -194,11 +199,11 @@ GROUPS = {
                     "RightArm": (-20, 0, 15), "LeftArm": (-20, 0, -15)}),
             (0.6,  {"Spine02": (25, 0, 0), "Spine01": (18, 0, 0), "neck": (-10, 0, 0),
                     "Hips": (35, 0, 0), "RightUpLeg": (40, 0, 0), "LeftUpLeg": (35, 0, 0),
-                    "RightLeg": (-70, 0, 0), "LeftLeg": (-65, 0, 0),
+                    "RightLeg": (70, 0, 0), "LeftLeg": (65, 0, 0),
                     "RightArm": (10, 0, -20), "LeftArm": (10, 0, 20)}),
             (1.0,  {"Spine02": (55, 0, 0), "Spine01": (30, 0, 0), "neck": (-25, 0, 0),
                     "Hips": (78, 0, 0), "RightUpLeg": (60, 0, 0), "LeftUpLeg": (55, 0, 0),
-                    "RightLeg": (-95, 0, 0), "LeftLeg": (-90, 0, 0),
+                    "RightLeg": (95, 0, 0), "LeftLeg": (90, 0, 0),
                     "RightArm": (25, 0, -35), "LeftArm": (25, 0, 35)}),
         ),
     },
