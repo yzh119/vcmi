@@ -237,11 +237,13 @@ python3 tools/creature-art/preview.py readability concept.png \
     --height 79 --lod "$LOD" --against CSKELE.DEF --out check.png
 ```
 
-`readability` is the gate a concept has to pass before any mesh work: it renders the
-candidate at 1x / 2x / 4x, extracts its silhouette at in-game size, and scores overlap
-against the original (>=70% reads as the same unit, <50% will not be recognised in
-play). The measured constraints and the chosen style direction for the first creature
-are in [`docs/brief-cskele.md`](docs/brief-cskele.md).
+`readability` renders a candidate at 1x / 2x / 4x and scores its silhouette overlap
+against the original. Treat the overlap as indicative only — at 79 pixels a redesign
+that reads correctly still scores in the 30s, because the metric rewards copying the
+original's pose rather than reading as the same unit. **The gate a concept has to
+pass is proportion**, stated as a ratio in the prompt and checked against the
+original's measured aspect. The constraints and the style direction for the first
+creature are in [`docs/brief-cskele.md`](docs/brief-cskele.md).
 
 Any view can read from a mod instead of a `.def` — swap `--lod/--def` for
 `--mod/--creature`, and add `--mod-scale 2` to inspect the 2x tree. `--layer shadow`
@@ -252,6 +254,54 @@ line is the body centre. In the original `CSKELE` idle loop the feet sit exactly
 the red line in all eight frames — that is the target your renders have to hit.
 
 `preview.py` needs Pillow (`pip install pillow`).
+
+### Animate and render
+
+`poses.py` holds the thirteen animation groups as keyframed bone rotations against
+the rig's rest pose, in degrees, in each bone's local space. `BASE` is the combat
+stance every group starts from; a group's keys are the delta that distinguishes it.
+`CREATURES` gives per-creature stance overrides and per-group amplitude gains — a
+zombie shambles at 0.35 of the skeleton's stride.
+
+```bash
+LOD=~/"Library/Application Support/vcmi/Data/H3sprite.lod"
+
+blender -b --python tools/creature-art/render_sprites.py -- \
+    --model rigged/skeleton.glb --out render/1x \
+    --group ATTACK_FRONT --creature CSKELE --rebind-weapon \
+    --lod "$LOD" --def CSKELE.DEF
+```
+
+`--lod/--def` take the frame count and canvas from the creature's own original
+rather than from a table, so a group that is 11 frames in one creature and 6 in
+another comes out right without being special-cased. Without them the frame counts
+fall back to whatever `poses.py` declares, which is how a zombie once shipped with
+12 of its 13 groups the wrong length and the validator passed it clean.
+
+`--rebind-weapon` moves held props onto the hand bone. Auto-rigging services have
+no notion of what is body and what is held, so a sword comes back split across
+whatever bones happen to be near it; on the skeleton that was `LeftHand` at 35% and
+`LeftFoot` at 43%, which stretches the blade between fist and toes as the leg moves.
+The rebind finds it by **weight incoherence**: every real body part is influenced by
+bones that neighbour each other in the skeleton — a femur by hip and knee, one hop
+apart — so a component whose two dominant bones sit more than five hops apart is
+held geometry, not anatomy. It also reports which hand, and poses are mirrored for
+a left-handed model rather than authored twice.
+
+Three things to know before tuning a pose:
+
+- **Leg bones point down**, so their local X runs opposite to the spine's. Positive
+  X on the lower leg bends the knee correctly; negative gives a backward-bending
+  knee that silhouette scores will happily rank highest.
+- **A held blade continues the forearm.** It leaves the wrist along the hand bone's
+  own axis, so the arm aims it and the wrist cannot. On the upper arm negative X
+  carries it forward, positive swings it behind the creature.
+- **Measure, do not guess.** Both of the above were wrong in the first version, and
+  neither is visible in a single frame. Rotate the bone, read the tip's position
+  out of the depsgraph, and set the key from the table.
+
+`--azimuth` defaults to -40, a three-quarter view facing right, which is how the
+original art is framed. Head-on renders foreshorten every swing.
 
 ### Render above the original's resolution
 
