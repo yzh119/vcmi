@@ -172,14 +172,22 @@ GROUPS = {
     # weapon hand travelled from +0.03 to +0.42. Same sign convention as the
     # weapon arm: negative X on the upper arm carries the hand forward.
     #
-    # The wind-up needs positive X, which is the opposite. Measuring the hand
-    # against the hips made the first version look right -- the weapon hand read
-    # +0.03 against the free hand's +0.39 -- but raising an arm pulls the hand up,
-    # not back, and the whole arm was reaching forward across the chest with the
-    # blade pointing the way it was about to travel. The sword has to be cocked
-    # behind the shoulder: hand at -0.23 behind the hips, tip at -0.57 behind and
-    # +0.93 above. The wrist does the last part; without it the blade follows the
-    # forearm forward however far back the shoulder goes.
+    # The wind-up is not just the opposite sign. Measuring the hand against the
+    # hips made the first version look right -- the weapon hand read +0.03 against
+    # the free hand's +0.39 -- but raising an arm pulls the hand up, not back, and
+    # the whole arm was reaching forward across the chest with the blade pointing
+    # the way it was about to travel.
+    #
+    # Swinging the shoulder back instead put the hand behind and cost all the
+    # height: ATTACK_FRONT collapsed from 79-103 px tall to 79-81, against the
+    # original's 69-108. The original's wind-up is both back and high.
+    #
+    # Both at once comes from the elbow, not the shoulder. Upper arm raised, elbow
+    # folded hard so the hand returns past the head. Solved against a target
+    # rather than guessed a third time, then re-solved once: the first solution
+    # put the tip 1.40 above the hips and overshot the other way, 79-127 px tall
+    # against the original's 69-108. The wrist's Z is what trades tip height for
+    # reach behind, so each attack takes a different amount of it.
     #
     # Second sign trap, after the knees. The blade leaves the wrist along the hand
     # bone's own axis -- it is a continuation of the forearm, not something the
@@ -192,8 +200,8 @@ GROUPS = {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (95, 0, 15), "RightForeArm": (-60, 0, 0),
-                    "RightHand": (150, 0, 40),
+            (0.2,  {"RightArm": (-50, 0, 15), "RightForeArm": (-110, 0, 0),
+                    "RightHand": (0, 0, 80),
                     "LeftArm": (-40, 0, 0), "LeftForeArm": (-25, 0, 0),
                     "Spine02": (-14, 0, -10), "neck": (4, 0, 0)}),
             (0.45, {"RightArm": (-60, 0, 12), "RightForeArm": (-10, 0, 0),
@@ -213,8 +221,8 @@ GROUPS = {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (85, 0, 12), "RightForeArm": (-70, 0, 0),
-                    "RightHand": (150, 0, 40),
+            (0.2,  {"RightArm": (-50, 0, 12), "RightForeArm": (-130, 0, 0),
+                    "RightHand": (0, 0, 40),
                     "LeftArm": (-48, 0, 0), "LeftForeArm": (-28, 0, 0),
                     "Spine02": (-16, 0, -8)}),
             (0.45, {"RightArm": (-85, 0, 8), "RightForeArm": (-30, 0, 0),
@@ -229,8 +237,8 @@ GROUPS = {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (95, 0, 20), "RightForeArm": (-60, 0, 0),
-                    "RightHand": (150, 0, 40),
+            (0.2,  {"RightArm": (-45, 0, 20), "RightForeArm": (-120, 0, 0),
+                    "RightHand": (0, 0, 60),
                     "LeftArm": (-38, 0, 0), "LeftForeArm": (-24, 0, 0),
                     "Spine02": (-10, 0, -12)}),
             (0.45, {"RightArm": (-60, 0, 16), "RightForeArm": (45, 0, 0),
