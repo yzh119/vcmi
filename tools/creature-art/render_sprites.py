@@ -68,8 +68,14 @@ def world_vertices(meshes, depsgraph):
     return points
 
 
-def measure_alpha_bbox(path):
-    """(left, top, right, bottom) of non-transparent pixels, read back in Blender."""
+def measure_alpha_bbox(path, threshold=0.004):
+    """(left, top, right, bottom) of solidly opaque pixels, read back in Blender.
+
+    Threshold is low on purpose: this has to agree with what everything downstream
+    measures, and PIL's getbbox counts any non-zero alpha. Raising it to measure
+    only solid coverage made calibration self-consistent and still left the render
+    a pixel off, because the two were measuring different extents.
+    """
     image = bpy.data.images.load(path)
     try:
         width, height = image.size
@@ -78,7 +84,7 @@ def measure_alpha_bbox(path):
         for y in range(height):
             row = y * width * 4
             for x in range(width):
-                if pixels[row + x * 4 + 3] > 0.004:
+                if pixels[row + x * 4 + 3] > threshold:
                     flipped = height - 1 - y   # to top-down pixel coordinates
                     if x < left: left = x
                     if x > right: right = x
@@ -428,11 +434,12 @@ def main():
     if args.group and armature is not None:
         apply_pose(armature, poses.pose_at(args.group, 0.0, args.creature or args.definition))
 
-    real_samples = scene.cycles.samples
-    scene.cycles.samples = 1                     # calibration only needs coverage
+    # Calibrate at the sample count the frames will use. A cheaper probe renders a
+    # narrower antialiased edge than the final frames, so the bbox comes out a
+    # pixel small and every frame lands a pixel low. One extra frame out of
+    # sixty-eight is a better trade than a systematic offset.
     calibrate_camera(camera, canvas, ground, creature_px,
                      os.path.join(args.out, "_calibration.png"))
-    scene.cycles.samples = real_samples
 
     if args.group:
         if armature is None:
