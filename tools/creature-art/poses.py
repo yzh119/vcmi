@@ -30,13 +30,19 @@ BASE = {
     "Spine":         (6, 0, 0),
     "neck":          (-14, 0, 0),
     "Head":          (-10, 0, 0),
-    # X is the forward/back swing, Z lowers the arm from the A-pose. The first
-    # version had X at -20 on the upper arm and -35 on the forearm, which read as
-    # reaching forward rather than carrying a sword; the swing is nearly gone now
-    # and the drop does the work.
+    # X is the forward/back swing, Y rolls the arm in toward the chest, Z lowers it
+    # from the A-pose. The weapon arm is the Right one by convention; mirror_pose
+    # moves it to the other side for a left-handed model.
+    #
+    # These are measured, not guessed. The blade leaves the wrist along the hand
+    # bone's axis, so the stance decides where it points: the values below put the
+    # tip 0.58 forward, 0.53 across the midline and 0.37 up from the floor, which
+    # is the original's low guard with the sword crossing the shins. The previous
+    # stance (-16, 10, -55) left it hanging straight out from the hip, on the far
+    # side of the body from the direction the creature faces.
     "RightShoulder": (0, 0, -8),
-    "RightArm":      (-16, 10, -55),
-    "RightForeArm":  (-30, 0, 0),
+    "RightArm":      (-10, 25, -40),
+    "RightForeArm":  (-20, 0, 0),
     "LeftShoulder":  (0, 0, 8),
     "LeftArm":       (-12, -10, 50),
     "LeftForeArm":   (-26, 0, 0),
@@ -119,29 +125,39 @@ GROUPS = {
     },
 
     # Forward attack: wind up, strike through, recover.
+    #
+    # Second sign trap, after the knees. The blade leaves the wrist along the hand
+    # bone's own axis -- it is a continuation of the forearm, not something the
+    # wrist aims independently -- and on the upper arm bone negative X carries that
+    # line forward and up. The first version struck at +25, which swung the sword
+    # behind the creature. Measured tip positions, as (forward, height) from the
+    # hips, for the deltas used below: (0.83, 2.42) wound up, (1.19, 1.17) at full
+    # extension, (0.66, 0.27) recovered.
     "ATTACK_FRONT": {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (-55, 0, 30), "RightForeArm": (-45, 0, 0),
-                    "Spine02": (-8, 0, -10), "neck": (4, 0, 0)}),
-            (0.45, {"RightArm": (25, 0, -20), "RightForeArm": (10, 0, 0),
-                    "Spine02": (12, 0, 14), "Hips": (6, 0, 6), "neck": (-6, 0, 0)}),
-            (0.7,  {"RightArm": (10, 0, -8), "RightForeArm": (-5, 0, 0),
+            (0.2,  {"RightArm": (-88, 0, 25), "RightForeArm": (-35, 0, 0),
+                    "Spine02": (-14, 0, -10), "neck": (4, 0, 0)}),
+            (0.45, {"RightArm": (-60, 0, 12), "RightForeArm": (-10, 0, 0),
+                    "Spine02": (4, 0, 14), "Hips": (6, 0, 6), "neck": (-6, 0, 0)}),
+            (0.7,  {"RightArm": (-34, 0, 14), "RightForeArm": (0, 0, 0),
                     "Spine02": (6, 0, 6), "Hips": (3, 0, 3)}),
             (1.0,  {}),
         ),
     },
 
-    # Upward and downward attacks reuse the swing, tilted at the shoulder and spine.
+    # Upward and downward attacks reuse the swing, aimed by how far the arm is
+    # allowed to come down: the strike key leaves the tip at height 1.9, 1.2 and
+    # 0.45 for UP, FRONT and DOWN respectively.
     "ATTACK_UP": {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (-70, 0, 25), "RightForeArm": (-50, 0, 0), "Spine02": (-12, 0, -8)}),
-            (0.45, {"RightArm": (-15, 0, -15), "RightForeArm": (-5, 0, 0),
+            (0.2,  {"RightArm": (-95, 0, 20), "RightForeArm": (-45, 0, 0), "Spine02": (-16, 0, -8)}),
+            (0.45, {"RightArm": (-85, 0, 8), "RightForeArm": (-30, 0, 0),
                     "Spine02": (-4, 0, 12), "Hips": (-4, 0, 5), "neck": (-14, 0, 0)}),
-            (0.7,  {"RightArm": (-8, 0, -6), "Spine02": (-2, 0, 5)}),
+            (0.7,  {"RightArm": (-52, 0, 12), "RightForeArm": (-15, 0, 0), "Spine02": (-2, 0, 5)}),
             (1.0,  {}),
         ),
     },
@@ -149,11 +165,12 @@ GROUPS = {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (-45, 0, 35), "RightForeArm": (-40, 0, 0), "Spine02": (-6, 0, -12)}),
-            (0.45, {"RightArm": (45, 0, -25), "RightForeArm": (18, 0, 0),
-                    "Spine02": (22, 0, 12), "Hips": (12, 0, 4),
+            (0.2,  {"RightArm": (-84, 0, 30), "RightForeArm": (-40, 0, 0), "Spine02": (-10, 0, -12)}),
+            (0.45, {"RightArm": (-60, 0, 16), "RightForeArm": (45, 0, 0),
+                    "Spine02": (12, 0, 12), "Hips": (12, 0, 4),
                     "RightUpLeg": (10, 0, 0), "neck": (6, 0, 0)}),
-            (0.7,  {"RightArm": (20, 0, -10), "Spine02": (12, 0, 6), "Hips": (6, 0, 2)}),
+            (0.7,  {"RightArm": (-40, 0, 16), "RightForeArm": (20, 0, 0),
+                    "Spine02": (8, 0, 6), "Hips": (6, 0, 2)}),
             (1.0,  {}),
         ),
     },
@@ -283,17 +300,46 @@ def creature_profile(name):
     return CREATURES.get(key, {})
 
 
-def pose_at(group, t, creature=None):
+def mirror_pose(pose):
+    """Swap the left and right halves of a pose.
+
+    Meshy puts the prop in whichever hand the concept art shows, and the concept
+    is not consistent about it -- the skeleton ended up left-handed. Rather than
+    author every attack twice, the group deltas are written for a right-handed
+    creature and mirrored when the rebind reports a left hand.
+
+    A mirrored rotation flips its name and negates the Y and Z components. That is
+    the relationship BASE already encodes between RightArm (-16, 10, -55) and
+    LeftArm (-12, -10, 50).
+    """
+    flipped = {}
+    for bone, value in pose.items():
+        if bone.startswith("Left"):
+            name = "Right" + bone[len("Left"):]
+        elif bone.startswith("Right"):
+            name = "Left" + bone[len("Right"):]
+        else:
+            name = bone
+        flipped[name] = (value[0], -value[1], -value[2])
+    return flipped
+
+
+def pose_at(group, t, creature=None, mirror=False):
     """The creature's stance plus the group's interpolated delta at time t."""
     profile = creature_profile(creature)
     base_pose = dict(BASE)
     base_pose.update(profile.get("base", {}))
+    if mirror:
+        base_pose = mirror_pose(base_pose)
     gain = profile.get("amplitude", {}).get(group, 1.0)
 
     spec = GROUPS[group]
     keys = spec["keys"]
     if spec.get("loop"):
         keys = keys + [(1.0, keys[0][1])]
+
+    if mirror:
+        keys = [(time, mirror_pose(delta)) for time, delta in keys]
 
     before, after = keys[0], keys[-1]
     for index in range(len(keys) - 1):

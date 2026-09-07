@@ -312,54 +312,90 @@ def connected_components(mesh):
     return list(groups.values())
 
 
-def rebind_weapon(meshes, armature, bone="RightHand", grip=0.16):
-    """Bind the weapon to the hand bone.
+def bone_hops(armature):
+    """Hop distance between every pair of bones, over the parent/child graph."""
+    import collections
+    adjacent = collections.defaultdict(set)
+    for bone in armature.pose.bones:
+        if bone.parent:
+            adjacent[bone.name].add(bone.parent.name)
+            adjacent[bone.parent.name].add(bone.name)
 
-    Meshy's auto-rig weights the mesh as one body and puts the weapon on whichever
-    bone is nearest its centre of mass. For the skeleton that was Hips: the arm
-    swings and the sword stays behind, which silently breaks every attack.
+    distance = {}
+    for source in adjacent:
+        seen, queue = {source: 0}, [source]
+        while queue:
+            node = queue.pop(0)
+            for peer in adjacent[node]:
+                if peer not in seen:
+                    seen[peer] = seen[node] + 1
+                    queue.append(peer)
+        distance[source] = seen
+    return distance
 
-    The weapon is found geometrically, not by weight. It is the connected component
-    that the hand is gripping -- some of its vertices sit within `grip` of the hand
-    joint -- and that extends furthest away from it. Every other component near the
-    hand is a finger bone, which is short.
+
+def rebind_weapon(meshes, armature, min_hops=5):
+    """Bind held props to the hand bone.
+
+    Meshy's auto-rig weights the whole model in one pass, with no notion of what
+    is body and what is held. The skeleton's sword came out split between
+    LeftHand (35%) and LeftFoot (43%): the grip follows the fist, the tip follows
+    the toes, and the blade stretches between them like a walking stick.
+
+    Finding it geometrically does not work. An earlier version took the component
+    the hand grips that reaches furthest, and picked the humerus -- the arm bones
+    are longer than the visible part of the blade and start closer to the joint.
+    Distance-to-nearest-bone does not work either; ribs bow further from the spine
+    than the blade does from the leg.
+
+    The weights themselves are the signal. Every real body part is influenced by
+    bones that are neighbours in the skeleton -- a femur by hip and knee, one hop
+    apart, a rib by two spine joints, three. Only rigid geometry held across the
+    body picks up two bones from different limb chains. On the skeleton the split
+    is exactly ten hops for all five sword components and at most three for the
+    other 173.
     """
-    # Use the pose bone matrix, not data.bones[].head. The glTF importer leaves
-    # rest-space bone heads in a different space entirely -- reading them put the
-    # hand 23 units away from the mesh and matched nothing.
-    pose_bone = armature.pose.bones.get(bone)
-    if pose_bone is None:
-        return 0
-    hand = (armature.matrix_world @ pose_bone.matrix).translation
-
-    moved = 0
+    hops = bone_hops(armature)
+    moved, held = 0, None
     for obj in meshes:
-        group = obj.vertex_groups.get(bone) or obj.vertex_groups.new(name=bone)
-        others = [g for g in obj.vertex_groups if g.name != bone]
-
-        best, best_reach = None, 0.0
+        names = {g.index: g.name for g in obj.vertex_groups}
+        targets = {}
         for component in connected_components(obj.data):
-            points = [obj.matrix_world @ obj.data.vertices[i].co for i in component]
-            if min((p - hand).length for p in points) > grip:
+            if len(component) < 40:
                 continue
-            reach = max((p - hand).length for p in points)
-            if reach > best_reach:
-                best, best_reach = component, reach
+            weight = {}
+            for index in component:
+                for entry in obj.data.vertices[index].groups:
+                    name = names[entry.group]
+                    weight[name] = weight.get(name, 0.0) + entry.weight
+            ranked = sorted(weight, key=weight.get, reverse=True)[:2]
+            if len(ranked) < 2 or hops.get(ranked[0], {}).get(ranked[1], 0) < min_hops:
+                continue
+            hand = next((n for n in ranked if "hand" in n.lower()), None)
+            if hand is None:
+                print("REBIND skipped %d vertices spanning %s -- no hand among them"
+                      % (len(component), " and ".join(ranked)))
+                continue
+            targets.setdefault(hand, []).extend(component)
 
-        # A finger is a few centimetres; a weapon is a limb-length away.
-        if best is None or best_reach < 0.25:
-            continue
+        for hand, indices in sorted(targets.items()):
+            group = obj.vertex_groups.get(hand) or obj.vertex_groups.new(name=hand)
+            others = [g for g in obj.vertex_groups if g.name != hand]
+            for index in indices:
+                for other in others:
+                    try:
+                        other.remove([index])
+                    except RuntimeError:
+                        pass
+                group.add([index], 1.0, "REPLACE")
+            moved += len(indices)
+            held = hand
+            print("REBIND %d vertices onto %s" % (len(indices), hand))
 
-        for index in best:
-            for other in others:
-                try:
-                    other.remove([index])
-                except RuntimeError:
-                    pass
-            group.add([index], 1.0, "REPLACE")
-        moved += len(best)
-        print("REBIND component of %d vertices, reach %.2f" % (len(best), best_reach))
-    return moved
+    if not moved:
+        print("REBIND found nothing to move -- the prop is already bound to one bone")
+    return held
+
 
 def clamp_alpha(path, threshold=0.06):
     """Zero out near-transparent pixels.
@@ -438,7 +474,11 @@ def main():
     parser.add_argument("--ground", type=int, default=267)
     parser.add_argument("--height", type=int, default=79, help="creature height in pixels")
     parser.add_argument("--elevation", type=float, default=30.0)
-    parser.add_argument("--azimuth", type=float, default=0.0)
+    # Heroes III's creatures are three-quarter views facing right, not head-on
+    # portraits. Rendering at 0 put the camera in front of the creature, which
+    # foreshortened every attack -- the sword swung towards the lens and barely
+    # moved on screen. Negative azimuth turns the model to face right.
+    parser.add_argument("--azimuth", type=float, default=-40.0)
     parser.add_argument("--frames", type=int, default=0,
                         help="override the group's frame count")
     parser.add_argument("--samples", type=int, default=48)
@@ -468,15 +508,19 @@ def main():
     scene = bpy.context.scene
 
     armature = find_armature()
+    mirror = False
     if armature is not None and args.rebind_weapon:
-        moved = rebind_weapon(meshes, armature)
-        print("REBIND %d vertices onto the hand" % moved)
+        # Which hand holds the weapon decides which arm the attacks swing. The
+        # skeleton is left-handed; the groups are written right-handed.
+        mirror = rebind_weapon(meshes, armature) == "LeftHand"
+        if mirror:
+            print("REBIND mirroring the pose for a left-handed creature")
 
     # Calibrate against the pose that will actually be rendered. The rig arrives in
     # an A-pose, and the combat stance is hunched -- calibrating before posing put
     # the creature 2 px too tall and 2 px too low.
     if args.group and armature is not None:
-        apply_pose(armature, poses.pose_at(args.group, 0.0, args.creature or args.definition))
+        apply_pose(armature, poses.pose_at(args.group, 0.0, args.creature or args.definition, mirror))
 
     # Calibrate at the sample count the frames will use. A cheaper probe renders a
     # narrower antialiased edge than the final frames, so the bbox comes out a
@@ -502,7 +546,7 @@ def main():
             # a one-shot samples [0, 1] so it reaches its final pose.
             t = index / float(count) if spec.get("loop") else (
                 index / float(count - 1) if count > 1 else 0.0)
-            apply_pose(armature, poses.pose_at(args.group, t, args.creature or args.definition))
+            apply_pose(armature, poses.pose_at(args.group, t, args.creature or args.definition, mirror))
             stem = os.path.join(args.out, "%s_%02d" % (name, index))
             render_to(stem + ".png")
 

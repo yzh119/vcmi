@@ -77,3 +77,7 @@ compile_commands.json
 
 # CLion
 .idea/
+
+# Python bytecode from the creature-art tools
+__pycache__/
+*.pyc
