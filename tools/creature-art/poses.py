@@ -46,12 +46,16 @@ BASE = {
     "LeftShoulder":  (0, 0, 8),
     "LeftArm":       (-12, -10, 50),
     "LeftForeArm":   (-26, 0, 0),
-    "RightUpLeg":    (16, 0, 0),
-    "RightLeg":      (10, 0, 0),
-    "RightFoot":     (-6, 0, 0),
-    "LeftUpLeg":     (-14, 0, 0),
-    "LeftLeg":       (8, 0, 0),
-    "LeftFoot":      (4, 0, 0),
+    # A wide stride, not a stand. The original's idle frame is 44 px across at 80
+    # tall; the earlier stance rendered 29, a narrow column that read as a figure
+    # standing to attention rather than braced for a fight. Opening the legs and
+    # bending both knees takes it to 40.
+    "RightUpLeg":    (38, 0, -10),
+    "RightLeg":      (26, 0, 0),
+    "RightFoot":     (-16, 0, 0),
+    "LeftUpLeg":     (-34, 0, 10),
+    "LeftLeg":       (22, 0, 0),
+    "LeftFoot":      (12, 0, 0),
 }
 
 
@@ -272,10 +276,14 @@ CREATURES = {
             "LeftShoulder":  (0, 0, 4),
             "LeftArm":       (-30, -8, 26),
             "LeftForeArm":   (-44, 0, 0),
+            # Pinned rather than inherited: the skeleton's stance opened up to
+            # match its original's width, and a shambling zombie should not.
             "RightUpLeg":    (10, 0, 0),
             "RightLeg":      (14, 0, 0),
+            "RightFoot":     (-6, 0, 0),
             "LeftUpLeg":     (-8, 0, 0),
             "LeftLeg":       (10, 0, 0),
+            "LeftFoot":      (4, 0, 0),
         },
         "amplitude": {
             "MOVING": 0.35,        # shamble, not a stride
