@@ -1,11 +1,11 @@
 {
   "_comment": "Necropolis roster. `aspect` is the original's width-to-height at idle, measured with def_extract.py. `design` says what the creature looks like and carries no pose; `pose` is the stance for the front/side views only. The apose view supplies its own pose, because a mesh has to be riggable and a compact stance defeats pose estimation.",
   "_moderation": "FLUX rejects graphic decay wording (\"rotting flesh\", \"dried blood\", \"bloated\") as Violence. The undead entries are worded around it: desiccated, drawn tight, tattered. Keep it that way.",
-  "_style": "Painterly stylised realism, not photoreal, detail subordinated to shape. Bold readable silhouette, three strong value masses, thick simplified forms.",
+  "_style": "Painterly stylised realism, not photoreal, detail subordinated to shape. Bold readable silhouette, three strong value masses with a wide range from near-black recesses to lit highlights, thick simplified forms. Weapons and equipment must contrast in value and hue against the body.",
 
   "creatures": [
     { "name": "skeleton", "def": "CSKELE.DEF", "aspect": 0.53,
-      "design": "Stylised fantasy skeleton warrior, bare bone, exaggerated skull and pelvis masses, thick simplified limbs, carrying a long plain sword. Desaturated grey-green ivory bone.",
+      "design": "Stylised fantasy skeleton warrior, bare bone, exaggerated skull and pelvis masses, thick simplified limbs, carrying a long sword with a dark oxidised iron blade and a bronze crossguard. The sword must be clearly darker than the bone -- at sprite size it only reads as a sword if it contrasts with the body. Desaturated grey-green ivory bone, dark iron, bronze.",
       "pose": "Hunched forward with the skull thrust ahead of the shoulders, sword low and angled down across the front of the body, arms near the ribs, short forward step." },
 
     { "name": "skeletonWarrior", "def": "CWSKEL.DEF", "aspect": 0.48,

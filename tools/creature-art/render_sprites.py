@@ -146,7 +146,7 @@ def calibrate_camera(camera, canvas, ground, height_px, probe_path, rounds=8):
 
 
 def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples,
-                key_energy=6.0, ambient=0.12):
+                key_energy=9.0, ambient=0.04):
     reset_scene()
     meshes = import_model(model)
     scene = bpy.context.scene
@@ -197,7 +197,7 @@ def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples,
     scene.collection.objects.link(sun)
 
     fill = bpy.data.objects.new("fill", bpy.data.lights.new("fill", type="SUN"))
-    fill.data.energy = key_energy * 0.18
+    fill.data.energy = key_energy * 0.10
     fill.rotation_euler = (math.radians(70), 0.0, math.radians(azimuth + 120))
     scene.collection.objects.link(fill)
 
@@ -404,8 +404,8 @@ def main():
     parser.add_argument("--def", dest="definition", help="the creature's def, e.g. CZOMBI.DEF")
     parser.add_argument("--rebind-weapon", action="store_true",
                         help="move weapon geometry onto the hand bone before posing")
-    parser.add_argument("--key-energy", type=float, default=6.0)
-    parser.add_argument("--ambient", type=float, default=0.12)
+    parser.add_argument("--key-energy", type=float, default=9.0)
+    parser.add_argument("--ambient", type=float, default=0.04)
     parser.add_argument("--body-only", action="store_true",
                         help="skip the shadow and overlay passes")
     parser.add_argument("--scale", type=int, default=1, help="render at N times 1x")
