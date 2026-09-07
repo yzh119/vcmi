@@ -192,21 +192,24 @@ GROUPS = {
         ),
     },
 
-    # Defending: crouched behind the guard.
+    # Defending: sword raised to near-vertical in front of the body. The original's
+    # parry is its tallest and one of its narrowest poses -- 36-61 px wide against
+    # 82-109 tall, where the idle is 44 by 80. The first version swung the blade
+    # out sideways and crouched, and came out wider than the idle and shorter.
     "DEFENCE": {
         "frames": 11, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.25, {"Spine02": (12, 0, 0), "Spine01": (8, 0, 0), "neck": (10, 0, 0),
-                    "RightArm": (-30, 0, 25), "RightForeArm": (-45, 0, 0),
+            (0.25, {"Spine02": (-6, 0, 0), "Spine01": (-4, 0, 0), "neck": (6, 0, 0),
+                    "RightArm": (-25, 60, 10), "RightForeArm": (-110, 0, 0),
                     "LeftArm": (-25, 0, -25), "LeftForeArm": (-40, 0, 0),
-                    "Hips": (10, 0, 0), "RightUpLeg": (12, 0, 0), "LeftUpLeg": (10, 0, 0),
-                    "RightLeg": (14, 0, 0), "LeftLeg": (12, 0, 0)}),
-            (0.75, {"Spine02": (12, 0, 0), "Spine01": (8, 0, 0), "neck": (10, 0, 0),
-                    "RightArm": (-30, 0, 25), "RightForeArm": (-45, 0, 0),
+                    "Hips": (-4, 0, 0), "RightUpLeg": (-10, 0, 0), "LeftUpLeg": (8, 0, 0),
+                    "RightLeg": (-6, 0, 0), "LeftLeg": (-4, 0, 0)}),
+            (0.75, {"Spine02": (-6, 0, 0), "Spine01": (-4, 0, 0), "neck": (6, 0, 0),
+                    "RightArm": (-25, 60, 10), "RightForeArm": (-110, 0, 0),
                     "LeftArm": (-25, 0, -25), "LeftForeArm": (-40, 0, 0),
-                    "Hips": (10, 0, 0), "RightUpLeg": (12, 0, 0), "LeftUpLeg": (10, 0, 0),
-                    "RightLeg": (14, 0, 0), "LeftLeg": (12, 0, 0)}),
+                    "Hips": (-4, 0, 0), "RightUpLeg": (-10, 0, 0), "LeftUpLeg": (8, 0, 0),
+                    "RightLeg": (-6, 0, 0), "LeftLeg": (-4, 0, 0)}),
             (1.0,  {}),
         ),
     },
