@@ -36,13 +36,23 @@ BASE = {
     #
     # These are measured, not guessed. The blade leaves the wrist along the hand
     # bone's axis, so the stance decides where it points: the values below put the
-    # tip 0.58 forward, 0.53 across the midline and 0.37 up from the floor, which
-    # is the original's low guard with the sword crossing the shins. The previous
-    # stance (-16, 10, -55) left it hanging straight out from the hip, on the far
-    # side of the body from the direction the creature faces.
+    # tip 0.86 forward, 0.16 to the sword's own side of the body and 0.65 below
+    # the hips -- the original's low carry, blade hanging down and forward.
+    #
+    # The side comes from Y, the roll about the arm's own axis, not from Z. Using
+    # Z to swing the blade out means raising the arm, and every silhouette gets
+    # wider with it: the idle went 44 px to 52, the walk 72 to 85. Y turns the
+    # blade over without moving the arm, so the stance keeps its drop.
+    #
+    # An earlier version read "across the body" in this comment and optimised for
+    # it, putting the tip 0.53 the *other* side of the midline. The hand never
+    # crosses, but at a three-quarter view a blade pointing to the far side reads
+    # as being held in the far hand, and since the walk keeps it on its own side
+    # the sword appeared to change hands between groups. Keep the tip positive
+    # here; crossing is for the middle of a swing, not for standing still.
     "RightShoulder": (0, 0, -8),
-    "RightArm":      (-10, 25, -40),
-    "RightForeArm":  (-20, 0, 0),
+    "RightArm":      (-16, 100, -40),
+    "RightForeArm":  (-30, 0, 0),
     "LeftShoulder":  (0, 0, 8),
     "LeftArm":       (-12, -10, 50),
     "LeftForeArm":   (-26, 0, 0),
@@ -84,14 +94,17 @@ _WALK = {
     "Spine01":      (6, 0, 0),
     "neck":         (-6, 0, 0),
     "Head":         (-4, 0, 0),
-    "RightArm":     (-22, 0, 10),
+    "RightArm":     (-22, -60, 10),
     "RightForeArm": (-8, 0, 0),
     # The wrist, not the arm, is what levels the blade. Once the weapon is bound
-    # to the hand at full weight the hand bone aims it directly: -70 puts it at
-    # +3 degrees, 0 leaves it at -68. Reaching for the same angle with the arm
-    # instead swung the whole silhouette out to 64-81 px wide and dropped it to
-    # 59 tall.
-    "RightHand":    (-60, 0, 0),
+    # to the hand at full weight the hand bone aims it directly. Reaching for the
+    # same angle with the arm instead swung the whole silhouette out to 64-81 px
+    # wide and dropped it to 59 tall.
+    #
+    # The Y here unrolls most of the stance's inward roll. Without it "level"
+    # comes out sideways rather than forward -- the blade tip sat 1.4 out to the
+    # side and the walk rendered 87 px wide against the original's 72.
+    "RightHand":    (-20, 0, 0),
 }
 
 
