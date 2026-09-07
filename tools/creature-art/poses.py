@@ -75,11 +75,10 @@ def _keys(*pairs):
 # in front of it. These are the midpoint of the two measurements, and land at
 # 41-53 by 71-73.
 #
-# The remaining width gap is not the stride. Swinging the legs 45% further moved
-# the silhouette by one pixel -- at this camera angle the stride runs almost
-# straight into the lens. The original's width comes from carrying the sword out
-# horizontally, which needs the wrist to aim independently of the forearm, and on
-# this mesh it cannot.
+# The width does not come from the stride: swinging the legs 45% further moved the
+# silhouette by one pixel, because at this camera angle the stride runs almost
+# straight into the lens. It comes from carrying the sword out level, which is
+# what the wrist entry below does.
 _WALK = {
     "Spine02":      (11, 0, 0),
     "Spine01":      (6, 0, 0),
@@ -87,6 +86,12 @@ _WALK = {
     "Head":         (-4, 0, 0),
     "RightArm":     (-22, 0, 10),
     "RightForeArm": (-8, 0, 0),
+    # The wrist, not the arm, is what levels the blade. Once the weapon is bound
+    # to the hand at full weight the hand bone aims it directly: -70 puts it at
+    # +3 degrees, 0 leaves it at -68. Reaching for the same angle with the arm
+    # instead swung the whole silhouette out to 64-81 px wide and dropped it to
+    # 59 tall.
+    "RightHand":    (-60, 0, 0),
 }
 
 
@@ -148,13 +153,24 @@ GROUPS = {
         "frames": 11, "loop": True,
         "keys": _keys(
             (0.0,  {}),
-            (0.35, {"RightArm": (-25, 0, 20), "RightForeArm": (-20, 0, 0), "Spine01": (-4, 0, 0)}),
-            (0.6,  {"RightArm": (-40, 0, 35), "RightForeArm": (-30, 0, 0), "Spine01": (-6, 0, 0)}),
-            (0.85, {"RightArm": (-25, 0, 20), "RightForeArm": (-20, 0, 0), "Spine01": (-4, 0, 0)}),
+            (0.35, {"RightArm": (-25, 0, 20), "RightForeArm": (-20, 0, 0),
+                    "LeftArm": (10, 0, 0), "Spine01": (-4, 0, 0)}),
+            (0.6,  {"RightArm": (-40, 0, 35), "RightForeArm": (-30, 0, 0),
+                    "LeftArm": (16, 0, 0), "Spine01": (-6, 0, 0)}),
+            (0.85, {"RightArm": (-25, 0, 20), "RightForeArm": (-20, 0, 0),
+                    "LeftArm": (10, 0, 0), "Spine01": (-4, 0, 0)}),
         ),
     },
 
     # Forward attack: wind up, strike through, recover.
+    #
+    # The free arm counterswings. A body swinging a weapon puts the weapon hand
+    # back and the free hand forward on the wind-up, then trades them on the
+    # strike; without it the figure reads as unbalanced no matter how good the
+    # weapon arm is. The first version never touched the free arm at all -- it
+    # measured +0.33 in front of the hips in every frame of every attack while the
+    # weapon hand travelled from +0.03 to +0.42. Same sign convention as the
+    # weapon arm: negative X on the upper arm carries the hand forward.
     #
     # Second sign trap, after the knees. The blade leaves the wrist along the hand
     # bone's own axis -- it is a continuation of the forearm, not something the
@@ -168,10 +184,13 @@ GROUPS = {
         "keys": _keys(
             (0.0,  {}),
             (0.2,  {"RightArm": (-88, 0, 25), "RightForeArm": (-35, 0, 0),
+                    "LeftArm": (-40, 0, 0), "LeftForeArm": (-25, 0, 0),
                     "Spine02": (-14, 0, -10), "neck": (4, 0, 0)}),
             (0.45, {"RightArm": (-60, 0, 12), "RightForeArm": (-10, 0, 0),
+                    "LeftArm": (38, 0, 0), "LeftForeArm": (10, 0, 0),
                     "Spine02": (4, 0, 14), "Hips": (6, 0, 6), "neck": (-6, 0, 0)}),
             (0.7,  {"RightArm": (-34, 0, 14), "RightForeArm": (0, 0, 0),
+                    "LeftArm": (16, 0, 0),
                     "Spine02": (6, 0, 6), "Hips": (3, 0, 3)}),
             (1.0,  {}),
         ),
@@ -184,10 +203,14 @@ GROUPS = {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (-95, 0, 20), "RightForeArm": (-45, 0, 0), "Spine02": (-16, 0, -8)}),
+            (0.2,  {"RightArm": (-95, 0, 20), "RightForeArm": (-45, 0, 0),
+                    "LeftArm": (-48, 0, 0), "LeftForeArm": (-28, 0, 0),
+                    "Spine02": (-16, 0, -8)}),
             (0.45, {"RightArm": (-85, 0, 8), "RightForeArm": (-30, 0, 0),
+                    "LeftArm": (48, 0, 0), "LeftForeArm": (14, 0, 0),
                     "Spine02": (-4, 0, 12), "Hips": (-4, 0, 5), "neck": (-14, 0, 0)}),
-            (0.7,  {"RightArm": (-52, 0, 12), "RightForeArm": (-15, 0, 0), "Spine02": (-2, 0, 5)}),
+            (0.7,  {"RightArm": (-52, 0, 12), "RightForeArm": (-15, 0, 0),
+                    "LeftArm": (24, 0, 0), "Spine02": (-2, 0, 5)}),
             (1.0,  {}),
         ),
     },
@@ -195,11 +218,15 @@ GROUPS = {
         "frames": 8, "loop": False,
         "keys": _keys(
             (0.0,  {}),
-            (0.2,  {"RightArm": (-84, 0, 30), "RightForeArm": (-40, 0, 0), "Spine02": (-10, 0, -12)}),
+            (0.2,  {"RightArm": (-84, 0, 30), "RightForeArm": (-40, 0, 0),
+                    "LeftArm": (-38, 0, 0), "LeftForeArm": (-24, 0, 0),
+                    "Spine02": (-10, 0, -12)}),
             (0.45, {"RightArm": (-60, 0, 16), "RightForeArm": (45, 0, 0),
+                    "LeftArm": (42, 0, 0), "LeftForeArm": (12, 0, 0),
                     "Spine02": (12, 0, 12), "Hips": (12, 0, 4),
                     "RightUpLeg": (10, 0, 0), "neck": (6, 0, 0)}),
             (0.7,  {"RightArm": (-40, 0, 16), "RightForeArm": (20, 0, 0),
+                    "LeftArm": (18, 0, 0),
                     "Spine02": (8, 0, 6), "Hips": (6, 0, 2)}),
             (1.0,  {}),
         ),
