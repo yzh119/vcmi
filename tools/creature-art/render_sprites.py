@@ -516,11 +516,18 @@ def main():
         if mirror:
             print("REBIND mirroring the pose for a left-handed creature")
 
-    # Calibrate against the pose that will actually be rendered. The rig arrives in
-    # an A-pose, and the combat stance is hunched -- calibrating before posing put
-    # the creature 2 px too tall and 2 px too low.
-    if args.group and armature is not None:
-        apply_pose(armature, poses.pose_at(args.group, 0.0, args.creature or args.definition, mirror))
+    # Calibrate on the idle, not on the group being rendered.
+    #
+    # The rig arrives in an A-pose and the combat stance is hunched, so calibrating
+    # before posing put the creature 2 px too tall and 2 px too low. But
+    # calibrating on each group's own first frame is wrong in a subtler way: it
+    # forces every group to start at exactly --height, which erases the height
+    # differences between groups. The original walks at 71-76 px and guards at
+    # 82-109 against an 80 px idle -- it crouches to move and reaches up to parry,
+    # and rescaling each group to 79 flattens both.
+    if armature is not None:
+        apply_pose(armature, poses.pose_at(
+            "HOLDING", 0.0, args.creature or args.definition, mirror))
 
     # Calibrate at the sample count the frames will use. A cheaper probe renders a
     # narrower antialiased edge than the final frames, so the bbox comes out a

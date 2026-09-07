@@ -70,14 +70,23 @@ def _keys(*pairs):
 # The original creeps: torso pitched well forward, head ahead of the hips, sword
 # carried out horizontally rather than hanging. Walking upright rendered 37-54 px
 # wide against the original's 54-72, and 78-85 tall against 71-76 -- too narrow
-# and too tall, which is what standing straight up does to a side view.
+# and too tall, which is what standing straight up does to a side view. Twice
+# these values overshot to 73-91: the torso folded double and the sword swung out
+# in front of it. These are the midpoint of the two measurements, and land at
+# 41-53 by 71-73.
+#
+# The remaining width gap is not the stride. Swinging the legs 45% further moved
+# the silhouette by one pixel -- at this camera angle the stride runs almost
+# straight into the lens. The original's width comes from carrying the sword out
+# horizontally, which needs the wrist to aim independently of the forearm, and on
+# this mesh it cannot.
 _WALK = {
-    "Spine02":      (22, 0, 0),
-    "Spine01":      (12, 0, 0),
-    "neck":         (-12, 0, 0),
-    "Head":         (-8, 0, 0),
-    "RightArm":     (-45, 0, 10),
-    "RightForeArm": (-15, 0, 0),
+    "Spine02":      (11, 0, 0),
+    "Spine01":      (6, 0, 0),
+    "neck":         (-6, 0, 0),
+    "Head":         (-4, 0, 0),
+    "RightArm":     (-22, 0, 10),
+    "RightForeArm": (-8, 0, 0),
 }
 
 
