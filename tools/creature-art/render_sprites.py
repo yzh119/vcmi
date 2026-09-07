@@ -149,6 +149,7 @@ def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples,
                 key_energy=9.0, ambient=0.04):
     reset_scene()
     meshes = import_model(model)
+    sanitise_materials(meshes)
     scene = bpy.context.scene
 
     scene.render.resolution_x, scene.render.resolution_y = canvas
@@ -156,6 +157,14 @@ def build_scene(model, canvas, elevation, azimuth, ground, height_px, samples,
     scene.render.film_transparent = True
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
+    # Blender defaults to the AgX view transform, which is built for photographic
+    # footage: it rolls off highlights and desaturates hard. Against the original's
+    # luminance range of 169 and peak saturation of 1.00, our renders were coming
+    # out at 61 and 0.24. Standard passes the render through untouched, which is
+    # what a sprite wants.
+    scene.view_settings.view_transform = "Standard"
+    scene.view_settings.look = "None"
+
     scene.render.engine = "CYCLES"
     scene.cycles.samples = samples
     scene.cycles.use_denoising = True
@@ -246,6 +255,41 @@ def frames_from_original(lod_path, def_name, group_id):
     name = def_name if def_name.upper().endswith(".DEF") else def_name + ".DEF"
     parsed = DefFile(extract(blob, entries, name))
     return len(parsed.groups.get(group_id, []))
+
+def sanitise_materials(meshes):
+    """Undo what the glTF import leaves on a Meshy material.
+
+    Meshy's export wires the base colour texture into Emission as well, at full
+    strength, and sets Metallic to 1. The result glows: turn every light off and
+    the model still renders at mid-grey, because it is lighting itself. Measured
+    against the original that showed up as a luminance floor of 112 where the
+    original reaches 24, and killing the fill and the ambient changed nothing.
+
+    Metallic 1 also removes the diffuse response, so what shading survives comes
+    from a specular lobe rather than form.
+    """
+    seen, fixed = set(), 0
+    for obj in meshes:
+        for material in obj.data.materials:
+            if material is None or material.name in seen or not material.use_nodes:
+                continue
+            seen.add(material.name)
+            for node in material.node_tree.nodes:
+                if node.type != "BSDF_PRINCIPLED":
+                    continue
+                for link in list(material.node_tree.links):
+                    if link.to_node is node and link.to_socket.name.startswith("Emission"):
+                        material.node_tree.links.remove(link)
+                if "Emission Strength" in node.inputs:
+                    node.inputs["Emission Strength"].default_value = 0.0
+                if "Metallic" in node.inputs and not node.inputs["Metallic"].is_linked:
+                    node.inputs["Metallic"].default_value = 0.0
+                if "Roughness" in node.inputs and not node.inputs["Roughness"].is_linked:
+                    node.inputs["Roughness"].default_value = 0.65
+                fixed += 1
+    if fixed:
+        print("MATERIALS un-emissive: %d" % fixed)
+    return fixed
 
 def connected_components(mesh):
     """Union-find over edges. A skeleton mesh is hundreds of separate bones."""
