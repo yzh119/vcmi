@@ -76,6 +76,35 @@ def _keys(*pairs):
 
 # Each group: how many frames the original uses, whether it loops, and the
 # deltas added to BASE at each normalised time.
+def _abs(**bones):
+    """Absolute bone angles, converted to the delta that reaches them from BASE.
+
+    Groups are stored as deltas so a creature reads the same across all thirteen,
+    but a delta is the wrong unit whenever the stance is already doing something
+    the group needs to replace rather than add to. The walk is the case: BASE
+    holds a wide combat stride, the walk cycle swings the legs again, and the two
+    compound into a 126-degree split -- the skeleton scissors in place instead of
+    walking. Stating the walk's legs absolutely and subtracting BASE here keeps
+    the cycle independent of whatever the stance is doing.
+    """
+    return {bone: tuple(v - BASE.get(bone, (0, 0, 0))[i] for i, v in enumerate(value))
+            for bone, value in bones.items()}
+
+
+# Standing still, the blade hangs steeper than the stance alone gives it. BASE has
+# to serve the swings too -- its arm position is where every attack starts from --
+# so the correction lives here rather than in BASE. Changing BASE to get this
+# angle cost the attacks their reach, which is the whole reason the stance and the
+# groups are separate.
+#
+# Measured: the idle renders 48-50 px wide with this against 53-54 without, on the
+# original's 44.
+_CARRY = {
+    "RightArm":     (-29, 30, 0),
+    "RightForeArm": (30, 0, 0),
+}
+
+
 # The carriage the walk holds through the whole cycle, on top of the leg swing.
 # The original creeps: torso pitched well forward, head ahead of the hips, sword
 # carried out horizontally rather than hanging. Walking upright rendered 37-54 px
@@ -89,23 +118,33 @@ def _keys(*pairs):
 # silhouette by one pixel, because at this camera angle the stride runs almost
 # straight into the lens. It comes from carrying the sword out level, which is
 # what the wrist entry below does.
-_WALK = {
-    "Spine02":      (11, 0, 0),
-    "Spine01":      (6, 0, 0),
-    "neck":         (-6, 0, 0),
-    "Head":         (-4, 0, 0),
-    "RightArm":     (-22, -60, 10),
-    "RightForeArm": (-8, 0, 0),
-    # The wrist, not the arm, is what levels the blade. Once the weapon is bound
-    # to the hand at full weight the hand bone aims it directly. Reaching for the
-    # same angle with the arm instead swung the whole silhouette out to 64-81 px
-    # wide and dropped it to 59 tall.
+_WALK = dict(_abs(
+    # Solved absolute, not tuned as an offset: reaching this angle by adding to the
+    # stance put the blade 40 degrees nose down, because the stance's inward roll
+    # rotates what "forward" means for anything layered on top.
     #
-    # The Y here unrolls most of the stance's inward roll. Without it "level"
-    # comes out sideways rather than forward -- the blade tip sat 1.4 out to the
-    # side and the walk rendered 87 px wide against the original's 72.
-    "RightHand":    (-20, 0, 0),
-}
+    # The target is 0.45 *above* the hand, not level with it. The camera looks down
+    # 30 degrees, so a blade that is level in world space projects sloping down the
+    # screen; the original reads horizontal because it is angled up. Measuring the
+    # tip against the hips rather than the hand hid this twice.
+    RightArm=(-25, 20, -20),
+    RightForeArm=(-30, 0, 0),
+    RightHand=(-90, 0, 0),
+    # BASE tucks the skull down for the combat stance and creeping forward on top
+    # of that buries it in the ribcage: the skull's underside sits 0.02 above the
+    # top of the chest during the walk against 0.10 standing still.
+    #
+    # Rotating the neck the other way does not lift it. The neck bone points up,
+    # so turning it swings the skull forward and *down* along an arc -- measured,
+    # +18 gives 0.02 clear, +34 gives -0.01 and +50 gives -0.05, all worse. The
+    # value that clears the chest is negative. Reducing the spine's lean helps a
+    # little; the neck does the rest.
+    neck=(-25, 0, 0),
+    Head=(10, 0, 0),
+), **{
+    "Spine02":      (5, 0, 0),
+    "Spine01":      (3, 0, 0),
+})
 
 
 GROUPS = {
@@ -115,22 +154,22 @@ GROUPS = {
     "MOVING": {
         "frames": 8, "loop": True,
         "keys": _keys(
-            (0.0,   dict(_WALK, **{
-                     "RightUpLeg": (-28, 0, 0), "RightLeg": (-10, 0, 0), "RightFoot": (8, 0, 0),
-                     "LeftUpLeg": (26, 0, 0), "LeftLeg": (34, 0, 0), "LeftFoot": (6, 0, 0),
-                     "LeftArm": (-18, 0, 0), "Hips": (12, 0, -5)})),
-            (0.25,  dict(_WALK, **{
-                     "RightUpLeg": (-6, 0, 0), "RightLeg": (14, 0, 0),
-                     "LeftUpLeg": (4, 0, 0), "LeftLeg": (18, 0, 0),
-                     "Hips": (9, 0, 0)})),
-            (0.5,   dict(_WALK, **{
-                     "RightUpLeg": (26, 0, 0), "RightLeg": (34, 0, 0), "RightFoot": (6, 0, 0),
-                     "LeftUpLeg": (-28, 0, 0), "LeftLeg": (-10, 0, 0), "LeftFoot": (8, 0, 0),
-                     "LeftArm": (18, 0, 0), "Hips": (12, 0, 5)})),
-            (0.75,  dict(_WALK, **{
-                     "RightUpLeg": (4, 0, 0), "RightLeg": (18, 0, 0),
-                     "LeftUpLeg": (-6, 0, 0), "LeftLeg": (14, 0, 0),
-                     "Hips": (9, 0, 0)})),
+            (0.0,   dict(_WALK, **dict(_abs(
+                     RightUpLeg=(-25, 0, 0), RightLeg=(6, 0, 0), RightFoot=(6, 0, 0),
+                     LeftUpLeg=(22, 0, 0), LeftLeg=(16, 0, 0), LeftFoot=(4, 0, 0)),
+                     **{"LeftArm": (-18, 0, 0), "Hips": (12, 0, -5)}))),
+            (0.25,  dict(_WALK, **dict(_abs(
+                     RightUpLeg=(-5, 0, 0), RightLeg=(16, 0, 0), RightFoot=(0, 0, 0),
+                     LeftUpLeg=(4, 0, 0), LeftLeg=(16, 0, 0), LeftFoot=(0, 0, 0)),
+                     **{"Hips": (9, 0, 0)}))),
+            (0.5,   dict(_WALK, **dict(_abs(
+                     RightUpLeg=(22, 0, 0), RightLeg=(16, 0, 0), RightFoot=(4, 0, 0),
+                     LeftUpLeg=(-25, 0, 0), LeftLeg=(6, 0, 0), LeftFoot=(6, 0, 0)),
+                     **{"LeftArm": (18, 0, 0), "Hips": (12, 0, 5)}))),
+            (0.75,  dict(_WALK, **dict(_abs(
+                     RightUpLeg=(4, 0, 0), RightLeg=(16, 0, 0), RightFoot=(0, 0, 0),
+                     LeftUpLeg=(-5, 0, 0), LeftLeg=(16, 0, 0), LeftFoot=(0, 0, 0)),
+                     **{"Hips": (9, 0, 0)}))),
         ),
     },
 
@@ -153,10 +192,13 @@ GROUPS = {
     "HOLDING": {
         "frames": 8, "loop": True,
         "keys": _keys(
-            (0.0,  {}),
-            (0.25, {"Spine01": (-2, 0, 0), "neck": (2, 0, 0), "RightArm": (2, 0, 0)}),
-            (0.5,  {"Spine01": (-3, 0, 0), "neck": (3, 0, 0), "RightArm": (3, 0, 1)}),
-            (0.75, {"Spine01": (-2, 0, 0), "neck": (2, 0, 0), "RightArm": (2, 0, 0)}),
+            (0.0,  dict(_CARRY)),
+            (0.25, dict(_CARRY, **{"Spine01": (-2, 0, 0), "neck": (2, 0, 0),
+                                   "RightArm": (-27, 30, 0)})),
+            (0.5,  dict(_CARRY, **{"Spine01": (-3, 0, 0), "neck": (3, 0, 0),
+                                   "RightArm": (-26, 30, 1)})),
+            (0.75, dict(_CARRY, **{"Spine01": (-2, 0, 0), "neck": (2, 0, 0),
+                                   "RightArm": (-27, 30, 0)})),
         ),
     },
 
@@ -184,6 +226,15 @@ GROUPS = {
     # measured +0.33 in front of the hips in every frame of every attack while the
     # weapon hand travelled from +0.03 to +0.42. Same sign convention as the
     # weapon arm: negative X on the upper arm carries the hand forward.
+    #
+    # The strike is solved in absolute angles and stored as the delta that reaches
+    # them, not tuned as a delta. BASE carries a 100-degree inward roll -- that is
+    # what keeps the blade on the sword's own side of the body -- and any delta
+    # added on top of it has its "forward" rotated by that much. Tuning the strike
+    # as an offset produced a blade that hung down through all five strike frames
+    # while the original thrusts level. Absolute arm (-70, 0, -20) with the elbow
+    # at -20 puts the tip 1.34 forward and 0.04 above the hips, which is level,
+    # with the hand 0.50 out in front.
     #
     # The wind-up is not just the opposite sign. Measuring the hand against the
     # hips made the first version look right -- the weapon hand read +0.03 against
@@ -217,12 +268,17 @@ GROUPS = {
                     "RightHand": (0, 0, 80),
                     "LeftArm": (-40, 0, 0), "LeftForeArm": (-25, 0, 0),
                     "Spine02": (-14, 0, -10), "neck": (4, 0, 0)}),
-            (0.45, {"RightArm": (-60, 0, 12), "RightForeArm": (-10, 0, 0),
+            (0.45, {"RightArm": (-54, -100, 20), "RightForeArm": (10, 0, 0),
+                    "RightHand": (0, 0, 0),
                     "LeftArm": (38, 0, 0), "LeftForeArm": (10, 0, 0),
-                    "Spine02": (4, 0, 14), "Hips": (6, 0, 6), "neck": (-6, 0, 0)}),
-            (0.7,  {"RightArm": (-34, 0, 14), "RightForeArm": (0, 0, 0),
+                    # The torso straightens into the thrust. Leaning further
+                    # forward here curled the figure up over the five strike
+                    # frames -- the original drives through standing tall.
+                    "Spine02": (-8, 0, 14), "Spine01": (-6, 0, 0),
+                    "Hips": (2, 0, 6), "neck": (10, 0, 0), "Head": (6, 0, 0)}),
+            (0.7,  {"RightArm": (-40, -55, 16), "RightForeArm": (0, 0, 0),
                     "LeftArm": (16, 0, 0),
-                    "Spine02": (6, 0, 6), "Hips": (3, 0, 3)}),
+                    "Spine02": (-4, 0, 6), "Hips": (1, 0, 3), "neck": (5, 0, 0)}),
             (1.0,  {}),
         ),
     },
@@ -322,11 +378,15 @@ GROUPS = {
     # this size, and the engine mirrors for the other facing anyway.
     "TURN_L": {
         "frames": 2, "loop": False,
-        "keys": _keys((0.0, {}), (1.0, {"Hips": (0, 0, 40), "Spine02": (0, 0, 15), "neck": (0, 0, -20)})),
+        "keys": _keys((0.0, dict(_CARRY)),
+                      (1.0, dict(_CARRY, **{"Hips": (0, 0, 40), "Spine02": (0, 0, 15),
+                                            "neck": (0, 0, -20)}))),
     },
     "TURN_R": {
         "frames": 2, "loop": False,
-        "keys": _keys((0.0, {"Hips": (0, 0, 40), "Spine02": (0, 0, 15), "neck": (0, 0, -20)}), (1.0, {})),
+        "keys": _keys((0.0, dict(_CARRY, **{"Hips": (0, 0, 40), "Spine02": (0, 0, 15),
+                                            "neck": (0, 0, -20)})),
+                      (1.0, dict(_CARRY))),
     },
 }
 
