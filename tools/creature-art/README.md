@@ -253,6 +253,37 @@ the red line in all eight frames — that is the target your renders have to hit
 
 `preview.py` needs Pillow (`pip install pillow`).
 
+### Render above the original's resolution
+
+This is the part a 3D pipeline gets for free. Heroes III's sprites are locked to
+whatever resolution they were pre-rendered at in 1999; ours are re-rendered on
+demand, so a higher-resolution set costs render time and nothing else.
+
+VCMI already reads them. `Sprites2x/`, `Sprites3x/` and `Sprites4x/` sit beside
+`Sprites/`, and the engine prefers the prescaled art whenever an upscaling filter
+is active, falling back to xBRZ only for what is missing
+(`docs/modders/HD_Graphics.md`).
+
+`--scale` multiplies the canvas, the ground line and the creature height together,
+so the anchor stays correct:
+
+```bash
+python3 tools/creature-art/render_sprites.py -- ... --scale 2   # 900x800,  ground 534, creature 158 px
+python3 tools/creature-art/render_sprites.py -- ... --scale 4   # 1800x1600, ground 1068, creature 316 px
+```
+
+Assemble each scale into its own tree, with the same `--creature` so the basepath
+and filenames match across them — which is what the engine requires:
+
+```bash
+assemble_mod.py --frames render/1x --mod ~/vcmi-mods/hd --creature CSKELE --scale 1
+assemble_mod.py --frames render/2x --mod ~/vcmi-mods/hd --creature CSKELE --scale 2
+```
+
+A 1x set is still required: the HD trees are only consulted when upscaling is on.
+The validator checks the scales agree on frame counts and that each canvas is the
+1x canvas times its factor.
+
 ### Validate
 
 ```bash
