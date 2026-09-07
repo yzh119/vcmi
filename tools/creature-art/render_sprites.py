@@ -392,6 +392,8 @@ def main():
     parser.add_argument("--frames", type=int, default=0,
                         help="override the group's frame count")
     parser.add_argument("--samples", type=int, default=48)
+    parser.add_argument("--creature", help="which per-creature pose profile to use "
+                                           "(defaults to --def)")
     parser.add_argument("--lod", help="archive to read the original frame counts from")
     parser.add_argument("--def", dest="definition", help="the creature's def, e.g. CZOMBI.DEF")
     parser.add_argument("--rebind-weapon", action="store_true",
@@ -424,7 +426,7 @@ def main():
     # an A-pose, and the combat stance is hunched -- calibrating before posing put
     # the creature 2 px too tall and 2 px too low.
     if args.group and armature is not None:
-        apply_pose(armature, poses.pose_at(args.group, 0.0))
+        apply_pose(armature, poses.pose_at(args.group, 0.0, args.creature or args.definition))
 
     real_samples = scene.cycles.samples
     scene.cycles.samples = 1                     # calibration only needs coverage
@@ -449,7 +451,7 @@ def main():
             # a one-shot samples [0, 1] so it reaches its final pose.
             t = index / float(count) if spec.get("loop") else (
                 index / float(count - 1) if count > 1 else 0.0)
-            apply_pose(armature, poses.pose_at(args.group, t))
+            apply_pose(armature, poses.pose_at(args.group, t, args.creature or args.definition))
             stem = os.path.join(args.out, "%s_%02d" % (name, index))
             render_to(stem + ".png")
 

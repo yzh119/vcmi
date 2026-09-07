@@ -221,8 +221,75 @@ GROUPS = {
 }
 
 
-def pose_at(group, t):
-    """BASE plus the group's interpolated delta at normalised time t."""
+# ---------------------------------------------------------------------------
+# Per-creature character
+# ---------------------------------------------------------------------------
+#
+# BASE and GROUPS were authored for the skeleton warrior, and sharing them across
+# the roster gave the zombie a full running stride where the original shambles.
+# The motion is the character: a skeleton strides, a zombie drags its feet, a lich
+# barely moves below the waist.
+#
+# A creature supplies two things, both optional:
+#
+#   base       overrides merged onto BASE -- its resting stance
+#   amplitude  per-group multiplier on the motion, 1.0 being the authored amount
+#
+# Anything not listed falls back to the shared values, so a new creature costs a
+# few lines rather than thirteen groups of keyframes.
+
+CREATURES = {
+    "CSKELE": {},          # the groups were authored against it
+
+    "CZOMBI": {
+        "base": {
+            # Slumped, head lolling, arms hanging heavy and forward rather than
+            # carrying anything. No weapon, so the sword stance does not apply.
+            "Spine02":       (16, 0, 0),
+            "Spine01":       (12, 0, 0),
+            "neck":          (-6, 0, 0),
+            "Head":          (8, 0, -10),
+            "RightShoulder": (0, 0, -4),
+            "RightArm":      (-34, 8, -28),
+            "RightForeArm":  (-40, 0, 0),
+            "LeftShoulder":  (0, 0, 4),
+            "LeftArm":       (-30, -8, 26),
+            "LeftForeArm":   (-44, 0, 0),
+            "RightUpLeg":    (10, 0, 0),
+            "RightLeg":      (14, 0, 0),
+            "LeftUpLeg":     (-8, 0, 0),
+            "LeftLeg":       (10, 0, 0),
+        },
+        "amplitude": {
+            "MOVING": 0.35,        # shamble, not a stride
+            "MOVE_START": 0.35,
+            "MOVE_END": 0.35,
+            "ATTACK_FRONT": 0.65,  # a swipe, not a sword swing
+            "ATTACK_UP": 0.65,
+            "ATTACK_DOWN": 0.65,
+            "MOUSEON": 0.5,
+            "HOLDING": 1.3,        # heavier sway while idle
+        },
+    },
+}
+
+
+def creature_profile(name):
+    if not name:
+        return {}
+    key = name.upper()
+    if key.endswith(".DEF"):
+        key = key[:-4]
+    return CREATURES.get(key, {})
+
+
+def pose_at(group, t, creature=None):
+    """The creature's stance plus the group's interpolated delta at time t."""
+    profile = creature_profile(creature)
+    base_pose = dict(BASE)
+    base_pose.update(profile.get("base", {}))
+    gain = profile.get("amplitude", {}).get(group, 1.0)
+
     spec = GROUPS[group]
     keys = spec["keys"]
     if spec.get("loop"):
@@ -240,12 +307,12 @@ def pose_at(group, t):
     blend = blend * blend * (3.0 - 2.0 * blend)
 
     pose = {}
-    for bone in set(BASE) | set(before[1]) | set(after[1]):
-        base = BASE.get(bone, (0.0, 0.0, 0.0))
+    for bone in set(base_pose) | set(before[1]) | set(after[1]):
+        base = base_pose.get(bone, (0.0, 0.0, 0.0))
         start = before[1].get(bone, (0.0, 0.0, 0.0))
         end = after[1].get(bone, (0.0, 0.0, 0.0))
         pose[bone] = tuple(
-            base[axis] + start[axis] + (end[axis] - start[axis]) * blend
+            base[axis] + gain * (start[axis] + (end[axis] - start[axis]) * blend)
             for axis in range(3)
         )
     return pose
