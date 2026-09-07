@@ -225,6 +225,16 @@ def find_armature():
     return None
 
 
+def apply_yaw(armature, degrees, rest):
+    """Rotate the whole model about the world vertical.
+
+    Turning a creature is not a bone rotation: the hips' own axes are not the
+    world's, so yawing them tips it over rather than turning it.
+    """
+    armature.rotation_mode = "XYZ"
+    armature.rotation_euler = (rest[0], rest[1], rest[2] + math.radians(degrees))
+
+
 def apply_pose(armature, pose):
     """Set every bone's local rotation from a {bone: (x, y, z) degrees} dict."""
     for bone in armature.pose.bones:
@@ -525,6 +535,7 @@ def main():
     # differences between groups. The original walks at 71-76 px and guards at
     # 82-109 against an 80 px idle -- it crouches to move and reaches up to parry,
     # and rescaling each group to 79 flattens both.
+    rest_yaw = tuple(armature.rotation_euler) if armature is not None else (0.0, 0.0, 0.0)
     if armature is not None:
         apply_pose(armature, poses.pose_at(
             "HOLDING", 0.0, args.creature or args.definition, mirror))
@@ -554,6 +565,7 @@ def main():
             t = index / float(count) if spec.get("loop") else (
                 index / float(count - 1) if count > 1 else 0.0)
             apply_pose(armature, poses.pose_at(args.group, t, args.creature or args.definition, mirror))
+            apply_yaw(armature, poses.yaw_at(args.group, t), rest_yaw)
             stem = os.path.join(args.out, "%s_%02d" % (name, index))
             render_to(stem + ".png")
 

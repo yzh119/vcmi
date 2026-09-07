@@ -91,6 +91,23 @@ def _abs(**bones):
             for bone, value in bones.items()}
 
 
+# The turn faces the creature at the viewer and raises the sword, which is what
+# the original's second frame does: 38-39 px wide against 82-108 tall, its
+# narrowest and nearly its tallest pose.
+#
+# Turning the creature is a rotation of the whole model about the world vertical,
+# not a bone rotation, so it lives in "yaw" rather than in the keys. Z on the hips
+# was used here and does not yaw at all: measured against the direction that faces
+# the camera, the stance sits at -40.7 degrees and the old keys took it to -78.8,
+# turning the creature further away. Y on the hips looked right by the same
+# measurement and rendered the skeleton lying on its side -- a shoulder line
+# projected flat cannot tell a yaw from a fall.
+_TURNED = {
+    "RightArm":     (-25, 60, 10),
+    "RightForeArm": (-110, 0, 0),
+}
+
+
 # Standing still, the blade hangs steeper than the stance alone gives it. BASE has
 # to serve the swings too -- its arm position is where every attack starts from --
 # so the correction lives here rather than in BASE. Changing BASE to get this
@@ -379,14 +396,14 @@ GROUPS = {
     "TURN_L": {
         "frames": 2, "loop": False,
         "keys": _keys((0.0, dict(_CARRY)),
-                      (1.0, dict(_CARRY, **{"Hips": (0, 0, 40), "Spine02": (0, 0, 15),
-                                            "neck": (0, 0, -20)}))),
+                      (1.0, dict(_CARRY, **_TURNED))),
+        "yaw": [(0.0, 0.0), (1.0, -40.0)],
     },
     "TURN_R": {
         "frames": 2, "loop": False,
-        "keys": _keys((0.0, dict(_CARRY, **{"Hips": (0, 0, 40), "Spine02": (0, 0, 15),
-                                            "neck": (0, 0, -20)})),
+        "keys": _keys((0.0, dict(_CARRY, **_TURNED)),
                       (1.0, dict(_CARRY))),
+        "yaw": [(0.0, -40.0), (1.0, 0.0)],
     },
 }
 
@@ -479,6 +496,29 @@ def mirror_pose(pose):
             name = bone
         flipped[name] = (value[0], -value[1], -value[2])
     return flipped
+
+
+def yaw_at(group, t):
+    """Degrees to rotate the whole model about the world vertical at time t.
+
+    Bone rotations cannot do this. The hips' own axes are not the world's, so
+    yawing them tips the creature over instead of turning it.
+    """
+    spec = GROUPS[group]
+    keys = spec.get("yaw")
+    if not keys:
+        return 0.0
+    if spec.get("loop"):
+        keys = keys + [(1.0, keys[0][1])]
+    before, after = keys[0], keys[-1]
+    for index in range(len(keys) - 1):
+        if keys[index][0] <= t <= keys[index + 1][0]:
+            before, after = keys[index], keys[index + 1]
+            break
+    span = after[0] - before[0]
+    blend = 0.0 if span <= 0 else (t - before[0]) / span
+    blend = blend * blend * (3.0 - 2.0 * blend)
+    return before[1] + (after[1] - before[1]) * blend
 
 
 def pose_at(group, t, creature=None, mirror=False):
