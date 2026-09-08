@@ -22,6 +22,7 @@ def main():
     errors, lengths, bottoms, drifts, replay = [], [], [], [], []
     walk_blade_elevations = []
     walk_wrists, walk_elbows, walk_shoulders = [], [], []
+    arm_leg = {side: [] for side in ['Right', 'Left']}
     endpoints = {}
     corpse_bottoms = []
     strike_heights = {}
@@ -53,6 +54,11 @@ def main():
                 original = clip['frames'][half_frame//2]
                 replay.extend((Vector(row[c]['actual'])-Vector(original[c]['actual'])).length for c in controls)
             if group == 'MOVING':
+                direction=Vector(manifest['direction'])
+                for side in arm_leg:
+                    shoulder_pos=arm.matrix_world @ arm.pose.bones[side+'Arm'].head
+                    hip_pos=arm.matrix_world @ arm.pose.bones[side+'UpLeg'].head
+                    arm_leg[side].append(((Vector(row[side+'Arm']['actual'])-shoulder_pos).dot(direction), (Vector(row[side+'Leg']['actual'])-hip_pos).dot(direction)))
                 shoulder = arm.matrix_world @ arm.pose.bones['RightArm'].head
                 elbow = Vector(row['RightArm']['joint'])
                 wrist = Vector(row['RightArm']['actual'])
@@ -118,7 +124,15 @@ def main():
     assert min(bottoms) > -2e-4, ('ground penetration', min(bottoms))
     assert max(lengths)-min(lengths) < 1e-5
     assert max(drifts) < 2e-4, ('planted foot drift', max(drifts))
-    assert min(walk_blade_elevations) > 50, ('walk sword must stay raised', min(walk_blade_elevations))
+    assert min(walk_blade_elevations)<10 and max(walk_blade_elevations)>55, ('blade levels behind and rises in front',walk_blade_elevations)
+    forward=[e for (w,f),e in zip(arm_leg['Right'],walk_blade_elevations) if w>sum(x for x,y in arm_leg['Right'])/len(arm_leg['Right'])]
+    backward=[e for (w,f),e in zip(arm_leg['Right'],walk_blade_elevations) if w<sum(x for x,y in arm_leg['Right'])/len(arm_leg['Right'])]
+    assert sum(forward)/len(forward)>sum(backward)/len(backward)+20
+    correlations={}
+    for side,pairs in arm_leg.items():
+        mx=sum(a for a,b in pairs)/len(pairs); my=sum(b for a,b in pairs)/len(pairs)
+        correlations[side]=sum((a-mx)*(b-my) for a,b in pairs)/math.sqrt(sum((a-mx)**2 for a,b in pairs)*sum((b-my)**2 for a,b in pairs))
+        assert correlations[side]<-.8, ('same-side arm and leg must move in opposition',side,correlations[side])
     wrist_swing = max(walk_wrists)-min(walk_wrists)
     elbow_swing = max(walk_elbows)-min(walk_elbows)
     shoulder_swing = max(walk_shoulders)-min(walk_shoulders)
@@ -130,6 +144,7 @@ def main():
               'blade_length_range': max(lengths)-min(lengths), 'max_stance_drift': max(drifts),
               'walk_blade_elevation_degrees': [min(walk_blade_elevations), max(walk_blade_elevations)],
               'strike_tip_heights': strike_heights,
+              'arm_leg_correlation': correlations,
               'walk_wrist_swing': wrist_swing, 'walk_elbow_swing': elbow_swing,
               'walk_shoulder_swing_degrees': shoulder_swing,
               'min_corpse_z': min(corpse_bottoms) if corpse_bottoms else None}

@@ -89,15 +89,8 @@ class Motion:
             result['hips'][0] += .007*wave
             result['hips'][2] -= .014*math.cos(2*math.tau*t)
             result['lean'] += 2*math.sin(2*math.tau*t)
-            result['LeftArm']['target'][1] += .045*wave
             swing = self.profile['walk']['weapon_arm_swing']
-            stride_wave = math.cos(math.tau*t)
-            result['RightArm']['target'][1] -= swing['wrist_forward']*stride_wave
-            result['RightArm']['target'][2] += swing['wrist_lift']*stride_wave
-            result['RightArm']['pole'][1] -= swing['elbow_forward']*stride_wave
             carry = self.profile['walk']['blade_elevation_degrees']
-            angle = math.radians(carry['mean']+carry['amplitude']*math.cos(math.tau*t))
-            result['blade_direction'] = [0, -math.cos(angle), math.sin(angle)]
             result['foot_pitch'] = {}
             duty = self.profile['walk']['stance_fraction']
             for side, sign, offset in [('Right', -1, 0), ('Left', 1, .5)]:
@@ -119,6 +112,17 @@ class Motion:
                 point.z += lift
                 result[side+'Leg']['target'] = list(point)
                 result['foot_pitch'][side] = pitch
+                # Couple each arm to its own foot in opposition: forward foot,
+                # backward wrist. The old cosine put the right pair forward together.
+                arm_wave=max(-1, min(1, distance/(self.stride*duty/2)))
+                if side == 'Right':
+                    angle=math.radians(carry['back']+(carry['front']-carry['back'])*(arm_wave+1)/2)
+                    result['blade_direction']=[0,-math.cos(angle),math.sin(angle)]
+                    result['RightArm']['target'][1] -= swing['wrist_forward']*arm_wave
+                    result['RightArm']['target'][2] += swing['wrist_lift']*arm_wave
+                    result['RightArm']['pole'][1] -= swing['elbow_forward']*arm_wave
+                else:
+                    result['LeftArm']['target'][1] -= .045*arm_wave
         elif group in ['ATTACK_FRONT', 'ATTACK_UP', 'ATTACK_DOWN']:
             keys = self.profile['clips'][group]['keys']
             before, after = keys[0], keys[-1]

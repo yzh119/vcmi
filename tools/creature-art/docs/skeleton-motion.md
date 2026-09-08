@@ -14,30 +14,28 @@ flip as the forearm passes the blade direction. Start/end movement clips relocat
 one foot at a time. Their endpoints join the authored phase-zero walk; arbitrary
 interrupted movement still needs in-game review.
 
-The walking carriage was revised after visual feedback: the blade now remains
-57–73 degrees above horizontal throughout the cycle, replacing the previous
--4–32 degree forward-pointing range. The weapon wrist is higher, the free hand
-is lowered away from the face, and torso lean is reduced from 42–46 to 34–38
-degrees. These angles describe the new design, not a measured fit to all original
-frames. Movement start/end share the revised walk endpoint.
+Walking arms now oppose the same-side feet. The previous independent cosine
+advanced the right wrist and right foot together. Each foot's authored fore/aft
+position now drives the corresponding arm in the opposite direction; wrist and
+elbow-pole travel remain coordinated. Shoulder-relative wrist travel is 0.352680
+model units, elbow travel 0.333438 and shoulder swing 101.659 degrees.
 
-The weapon arm now swings with the walk cycle. The profile controls wrist
-forward travel/lift and elbow-pole travel together, so the upper arm rotates at
-the shoulder while the forearm follows. The wrist moves forward on the first
-contact, back halfway through the cycle, then returns. Start/end clips use the
-same revised endpoint. Blade elevation remains 57–73 degrees.
+The user clarified that sword-up applies to forward arm carriage. Blade elevation
+now follows wrist travel from 0 degrees behind the body to 65 degrees in front,
+replacing the earlier all-cycle 57–73-degree constraint. Start/end movement share
+the revised walk endpoint. The free hand remains low and torso lean unchanged.
 
-Saved-frame checks measure movement relative to the shoulder, excluding apparent
-motion from torso sway. The wrist's forward/back range increases from 0.014908
-to 0.360025 model units; elbow range is 0.339639. The previous clip fails the new
-arm-swing check despite passing IK and blade-elevation checks. These are motion
-checks, not a claim of matching the original frame for frame.
+A saved-frame test measures same-side arm/leg fore-aft correlation in the travel
+direction. Right correlation changes from +0.922559 to -0.998697, and left from
++0.328537 to -0.983086. Both must be below -0.8. Blade checks require a low rear
+carriage, a raised front carriage and higher mean elevation during forward arm
+travel. This tests coordination, not exact original-frame reconstruction.
 
 ## Full clip set
 
 | Groups | Frames per group | Behavior |
 |---|---:|---|
-| HOLDING, MOVING | 8 | Idle and raised-sword walk loops |
+| HOLDING, MOVING | 8 | Idle and opposed-arm walk loops |
 | MOVE_START, MOVE_END | 2 | Enter and leave the phase-zero walk |
 | MOUSEON | 11 | Raise sword and free hand, then return |
 | HITTED | 6 | Recoil, settle forward, return |
@@ -89,15 +87,15 @@ measured stance drift at subframes from 0.008757 to 0.000061 model units
 ```sh
 blender -b --python-exit-code 1 --python tools/creature-art/skeleton_motion.py -- \
   --model "$HOME/vcmi-art/skeleton-study/source/skeleton.glb" \
-  --out "$HOME/vcmi-art/skeleton-motion/full-review-02"
+  --out "$HOME/vcmi-art/skeleton-motion/full-review-03"
 
 blender -b --python-exit-code 1 --python tools/creature-art/test_skeleton_motion.py -- \
-  "$HOME/vcmi-art/skeleton-motion/full-review-02"
+  "$HOME/vcmi-art/skeleton-motion/full-review-03"
 
 tools/creature-art/.venv/bin/python tools/creature-art/motion_preview.py \
-  "$HOME/vcmi-art/skeleton-motion/full-review-02" \
+  "$HOME/vcmi-art/skeleton-motion/full-review-03" \
   --reference tools/creature-art/ref/cskele/body \
-  --previous "$HOME/vcmi-art/skeleton-motion/full-review-01"
+  --previous "$HOME/vcmi-art/skeleton-motion/full-review-02"
 ```
 
 Use a fresh output directory and do not edit sources during a render. `--no-render`

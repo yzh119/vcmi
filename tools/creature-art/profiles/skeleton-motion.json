@@ -1188,8 +1188,8 @@
     "tiles_per_cycle": 1.6,
     "foot_spread": 0.16,
     "blade_elevation_degrees": {
-      "mean": 65,
-      "amplitude": 8
+      "back": 0,
+      "front": 65
     },
     "weapon_arm_swing": {
       "wrist_forward": 0.18,
