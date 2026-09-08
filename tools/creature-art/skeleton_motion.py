@@ -35,6 +35,10 @@ def mix(a, b, t):
 
 
 def apply_pose(arm, controls, spec):
+    root = bpy.data.objects.get('MotionRoot')
+    if root:
+        root.matrix_basis = Matrix.Identity(4)
+        bpy.context.view_layer.update()
     for c in controls.values():
         c['target'].rotation_mode = 'XYZ'
     study.apply_study_pose(arm, controls, spec, arm['weapon_hand'])
@@ -48,6 +52,15 @@ def apply_pose(arm, controls, spec):
         target.rotation_mode = 'QUATERNION'
         target.rotation_quaternion = Quaternion(spec['weapon_quaternion'])
     bpy.context.view_layer.update()
+    if root:
+        root.rotation_mode = 'XYZ'
+        root.rotation_euler.z = math.radians(spec.get('root_yaw', 0))
+        bpy.context.view_layer.update()
+        if spec.get('floor_support'):
+            meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+            bottom = min(p.z for p in study.render.world_vertices(meshes, bpy.context.evaluated_depsgraph_get()))
+            root.location.z = max(0, .003-bottom)*spec['floor_support']
+            bpy.context.view_layer.update()
 
 
 class Motion:
@@ -102,7 +115,7 @@ class Motion:
                 point.z += lift
                 result[side+'Leg']['target'] = list(point)
                 result['foot_pitch'][side] = pitch
-        elif group == 'ATTACK_FRONT':
+        elif group in ['ATTACK_FRONT', 'ATTACK_UP', 'ATTACK_DOWN']:
             keys = self.profile['clips'][group]['keys']
             before, after = keys[0], keys[-1]
             for a, b in zip(keys, keys[1:]):
@@ -116,7 +129,7 @@ class Motion:
             # Rear foot supports the whole attack. The front foot steps into the
             # lunge and returns in a separate lifted phase, instead of sliding.
             idle = self.profile['poses']['holding']['RightLeg']['target']
-            strike = self.profile['poses']['strike']['RightLeg']['target']
+            strike = self.profile['poses'][self.profile['clips'][group].get('strike_pose', 'strike')]['RightLeg']['target']
             lift = 0
             if t < .12:
                 foot = list(idle)
@@ -148,18 +161,38 @@ class Motion:
                 foot = mix(start[side+'Leg']['target'], end[side+'Leg']['target'], smooth(u))
                 foot[2] = self.contact_height[side]+.075*math.sin(math.pi*u)**2
                 result[side+'Leg']['target'] = foot
+        elif group in ['TURN_L', 'TURN_R']:
+            u = t if group == 'TURN_L' else 1-t
+            result = self.pose('HOLDING', 0)
+            result['root_yaw'] = -75*smooth(u)
+        elif group in ['MOUSEON', 'HITTED', 'DEFENCE', 'DEATH']:
+            keys = self.profile['clips'][group]['keys']
+            a, b = keys[0], keys[-1]
+            for before, after in zip(keys, keys[1:]):
+                if before[0] <= t <= after[0]:
+                    a, b = before, after
+                    break
+            u = smooth((t-a[0])/(b[0]-a[0]))
+            result = mix(self.profile['poses'][a[1]], self.profile['poses'][b[1]], u)
+            if self.rotations:
+                result['weapon_quaternion'] = list(self.rotations[a[1]].slerp(self.rotations[b[1]], u))
+            for side in ['Left', 'Right']:
+                result[side+'Leg']['target'][2] = self.contact_height[side]
+            if group == 'DEATH':
+                result['floor_support'] = smooth(t/.17)
         else:
             raise ValueError(group)
         if group != 'MOVING':
             for side in ['Left', 'Right']:
-                if group == 'HOLDING' or (group == 'ATTACK_FRONT' and side == 'Left'):
+                if group == 'HOLDING' or (group.startswith('ATTACK_') and side == 'Left'):
                     result[side+'Leg']['target'][2] = self.contact_height[side]
         return result
 
     def calibrate_grip(self, arm, controls):
         # Slerp key orientations across the attack. Re-deriving a hand basis from
         # a nearly parallel blade and forearm at every frame can flip the wrist.
-        for _, name in self.profile['clips']['ATTACK_FRONT']['keys']:
+        names = {name for clip in self.profile['clips'].values() for _, name in clip.get('keys', [])}
+        for name in sorted(names):
             spec = copy.deepcopy(self.profile['poses'][name])
             apply_pose(arm, controls, spec)
             self.rotations[name] = controls['RightArm']['target'].matrix_world.to_quaternion()
@@ -171,6 +204,9 @@ def controls_for(arm):
 
 
 def key_pose(arm, controls, frame, previous):
+    root = bpy.data.objects['MotionRoot']
+    root.keyframe_insert('location', frame=frame)
+    root.keyframe_insert('rotation_euler', frame=frame)
     for bone in arm.pose.bones:
         basis = bone.matrix_basis.copy()
         bone.rotation_mode = 'QUATERNION'
@@ -242,6 +278,11 @@ def build(args, rig_profile):
     contact = {side: arm.data.bones[side+'Foot'].head_local.z -
                min(v.co.z for v in bpy.data.objects[side+'FootGeometry'].data.vertices)
                for side in ['Left', 'Right']}
+    root = bpy.data.objects.new('MotionRoot', None)
+    bpy.context.scene.collection.objects.link(root)
+    for obj in list(bpy.context.scene.objects):
+        if obj != root and obj.type not in ['CAMERA', 'LIGHT'] and obj.parent is None:
+            obj.parent = root
     return arm, controls, socket, weapons, camera, repair, contact
 
 
@@ -284,7 +325,7 @@ def main():
     motion.stride = profile['walk']['hex_width']*profile['walk']['tiles_per_cycle']*camera.data.ortho_scale/450
     motion.calibrate_grip(arm, controls)
     report = {}
-    objects = [arm]+[c[k] for c in controls.values() for k in ['target', 'pole']]
+    objects = [arm, bpy.data.objects['MotionRoot']]+[c[k] for c in controls.values() for k in ['target', 'pole']]
     for group, clip in profile['clips'].items():
         for obj in objects:
             obj.animation_data_clear()

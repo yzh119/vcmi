@@ -9,11 +9,10 @@ import json
 from pathlib import Path
 import subprocess
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 
 BACKGROUND = (28, 29, 33)
-GROUPS = ['holding', 'moving', 'attack_front', 'move_start', 'move_end']
 
 
 def tile(path, center, scale=2):
@@ -36,9 +35,10 @@ def main():
     args = parser.parse_args()
     p = args.directory
     manifest = json.loads((p/'manifest.json').read_text())
+    groups = [name.lower() for name in manifest['clips']]
     reference = json.loads((args.reference.parent/'layout.json').read_text())
     counts = {g['name']: len(g['frames']) for g in reference['groups']}
-    for group in GROUPS:
+    for group in groups:
         expected = counts[group.upper()]
         assert manifest['profile']['clips'][group.upper()]['sprite_frames'] == expected
         for scale in [1, 2]:
@@ -57,10 +57,10 @@ def main():
             '<meta name="viewport" content="width=device-width,initial-scale=1">',
             '<title>Skeleton motion review</title>',
             '<style>body{background:#1c1d21;color:#ddd;font:16px system-ui;max-width:1000px;margin:32px auto;padding:16px}video{width:360px;max-width:100%}img{max-width:100%}section{display:inline-block;vertical-align:top;margin:12px}p{line-height:1.6}</style>',
-            '<h1>Skeleton motion review</h1><p>Editable five-clip study. Videos show the 30 fps bake at 2× game scale. '
+            '<h1>Skeleton motion review</h1><p>Editable skeleton clips. Videos show the 30 fps bake at 2× game scale. '
             'Pause or scrub to inspect. Body pass only; no in-game acceptance yet. '
             'Attack includes recovery to holding. Movement is shown in place.</p>']
-    for group in GROUPS:
+    for group in groups:
         frames = []
         for source in sorted((p/'review'/group).glob('*.png')):
             raw = tile(source, new_center)
@@ -79,12 +79,37 @@ def main():
                          '[bg][fg]overlay=shortest=1,format=yuv420p') % (round(new_center-180), fps),
                         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18',
                         '-movflags', '+faststart', str(output/(group+'.mp4'))], check=True)
-        html.append('<section><h2>%s</h2><video controls loop muted playsinline preload="metadata" poster="%s.gif" src="%s.mp4"></video></section>' % (group, group, group))
+        count = counts[group.upper()]
+        comparison = Image.new('RGB', (180*count, 350), BACKGROUND)
+        labels = ImageDraw.Draw(comparison)
+        for row, (label, source, offset) in enumerate([
+                ('Original', args.reference, ref_center), ('Study', p/'sprites1x', new_center/2)]):
+            for i in range(count):
+                raw = tile(source/(group+'_%02d.png' % i), offset, 1)
+                comparison.paste(raw, (180*i, row*175+22), raw)
+                labels.text((180*i+4, row*175+4), '%s %s %d' % (label, group, i), fill='white')
+        comparison.save(output/(group+'-frames.png'))
+        html.append('<section><h2>%s</h2><video controls loop muted playsinline preload="metadata" poster="%s.gif" src="%s.mp4"></video><p><a href="%s-frames.png">Original / study frames</a></p></section>' % (group, group, group, group))
+    if 'turn_l' in groups and 'turn_r' in groups:
+        # ReverseAnimation plays TURN_L, flips facing, then plays TURN_R.
+        sequence = [('holding', 0, False)]*4 + [('turn_l', i, False) for i in range(2)]
+        sequence += [('turn_r', i, True) for i in range(2)] + [('holding', 0, True)]*4
+        frames = []
+        for group, index, mirrored in sequence:
+            raw = tile(p/'sprites2x'/('%s_%02d.png' % (group, index)), new_center)
+            if mirrored:
+                raw = ImageOps.mirror(raw)
+            frame = Image.new('RGB', raw.size, BACKGROUND)
+            frame.paste(raw, (0, 0), raw)
+            frames.append(frame)
+        frames[0].save(output/'turn-order.gif', save_all=True, append_images=frames[1:],
+                       duration=100, loop=0, disposal=2)
+        html.append('<h2>Turn sequence</h2><p>Native two-frame clips in engine order: TURN_L, facing flip, TURN_R. Holding bookends are added for inspection.</p><img src="turn-order.gif" alt="Combined turn sequence">')
     # Original-count frames, aligned by phase; not a claim of matched engine timing.
     width, height = 180, 175
     sheet = Image.new('RGB', (8*width, 6*height), BACKGROUND)
     draw = ImageDraw.Draw(sheet)
-    for group_index, group in enumerate(GROUPS[:3]):
+    for group_index, group in enumerate(groups[:3]):
         for version, source, offset in [('Original', args.reference, ref_center),
                                          ('Study', p/'sprites1x', new_center/2)]:
             row = group_index*2+(version == 'Study')

@@ -378,16 +378,16 @@ def apply_study_pose(arm, controls, spec, weapon_hand):
 def measurements(arm, controls, socket, weapons):
     rows = {}
     for key, c in controls.items():
-        actual = arm.pose.bones[c['end']].head
-        rows[key] = {'target_error': (actual - c['target'].location).length,
-                     'actual': list(actual), 'joint': list(arm.pose.bones[c['joint']].head)}
+        actual = arm.matrix_world @ arm.pose.bones[c['end']].head
+        rows[key] = {'target_error': (actual - c['target'].matrix_world.translation).length,
+                     'actual': list(actual), 'joint': list(arm.matrix_world @ arm.pose.bones[c['joint']].head)}
     blade = weapons[-1]
     tip = sum((v.co for v in blade.data.vertices[8:12]), Vector()) / 4
     heel = sum((v.co for v in blade.data.vertices[:4]), Vector()) / 4
     rows['blade_length'] = (blade.matrix_world @ tip - blade.matrix_world @ heel).length
     rows['socket_error'] = (socket.matrix_world.translation -
-                            arm.pose.bones[arm['weapon_hand']].head).length
-    rows['head'] = list(arm.pose.bones['Head'].head)
+                            arm.matrix_world @ arm.pose.bones[arm['weapon_hand']].head).length
+    rows['head'] = list(arm.matrix_world @ arm.pose.bones['Head'].head)
     graph = bpy.context.evaluated_depsgraph_get()
     for side in ['Left', 'Right']:
         obj = bpy.data.objects[side + 'FootGeometry']

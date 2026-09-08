@@ -22,6 +22,8 @@ def main():
     errors, lengths, bottoms, drifts, replay = [], [], [], [], []
     walk_blade_elevations = []
     endpoints = {}
+    corpse_bottoms = []
+    strike_heights = {}
     checked = 0
     for group, clip in manifest['clips'].items():
         bpy.ops.wm.open_mainfile(filepath=str(directory/(group.lower()+'.blend')))
@@ -41,7 +43,11 @@ def main():
             assert row['socket_error'] < 1e-6
             errors.extend(row[c]['target_error'] for c in controls)
             bottoms.extend(row[s+'FootBottom'] for s in ['Left', 'Right'])
-            states.append({n: b.matrix.copy() for n, b in arm.pose.bones.items()})
+            states.append({n: arm.matrix_world @ b.matrix for n, b in arm.pose.bones.items()})
+            if group == 'DEATH':
+                meshes = [o for o in scene.objects if o.type == 'MESH']
+                points = study.render.world_vertices(meshes, bpy.context.evaluated_depsgraph_get())
+                corpse_bottoms.append(min(p.z for p in points))
             if half_frame % 2 == 0:
                 original = clip['frames'][half_frame//2]
                 replay.extend((Vector(row[c]['actual'])-Vector(original[c]['actual'])).length for c in controls)
@@ -63,6 +69,14 @@ def main():
                         planted.setdefault(key, world)
                         drifts.append((world-planted[key]).length)
         endpoints[group] = (states[0], states[-1])
+        if group.startswith('ATTACK_'):
+            frame = 1+3/7*(clip['closure_frame']-1)
+            scene.frame_set(math.floor(frame), subframe=frame % 1)
+            blade = weapons[-1]
+            tip = sum((v.co for v in blade.data.vertices[8:12]), Vector())/4
+            strike_heights[group] = (blade.matrix_world @ tip).z
+        if group == 'DEATH':
+            assert max(p.z for p in points) < .55, 'death must finish on the floor'
         if manifest['profile']['clips'][group]['loop']:
             assert matrix_error(*endpoints[group]) < 2e-4, ('loop seam', group)
         for obj in scene.objects:
@@ -78,6 +92,19 @@ def main():
                           ('MOVE_END', 0, 'MOVING', 0),
                           ('MOVE_END', 1, 'HOLDING', 0)]:
         assert matrix_error(endpoints[a][ai], endpoints[b][bi]) < 2e-4, ('transition', a, b)
+    for group in ['MOUSEON', 'HITTED', 'DEFENCE', 'ATTACK_UP', 'ATTACK_DOWN']:
+        if group in endpoints:
+            for end in endpoints[group]:
+                assert matrix_error(end, endpoints['HOLDING'][0]) < 2e-4, ('return to holding', group)
+    if 'TURN_L' in endpoints:
+        assert matrix_error(endpoints['TURN_L'][0], endpoints['HOLDING'][0]) < 2e-4
+        assert matrix_error(endpoints['TURN_R'][1], endpoints['HOLDING'][0]) < 2e-4
+        assert matrix_error(endpoints['TURN_L'][1], endpoints['TURN_R'][0]) < 2e-4
+        assert matrix_error(*endpoints['TURN_L']) > .5, 'turn must rotate the body'
+        assert matrix_error(endpoints['DEATH'][0], endpoints['HOLDING'][0]) < 2e-4
+        assert min(corpse_bottoms) > -.002, ('corpse penetrates floor', min(corpse_bottoms))
+        assert strike_heights['ATTACK_UP'] > strike_heights['ATTACK_FRONT']+.25
+        assert strike_heights['ATTACK_DOWN'] < strike_heights['ATTACK_FRONT']-.25
     assert max(errors) < 2e-4, ('IK', max(errors))
     assert max(replay) < 2e-4, ('saved animation differs from authored motion', max(replay))
     assert min(bottoms) > -2e-4, ('ground penetration', min(bottoms))
@@ -87,7 +114,9 @@ def main():
     report = {'evaluated_samples': checked, 'max_ik_error': max(errors),
               'max_replay_error': max(replay), 'min_sole_z': min(bottoms),
               'blade_length_range': max(lengths)-min(lengths), 'max_stance_drift': max(drifts),
-              'walk_blade_elevation_degrees': [min(walk_blade_elevations), max(walk_blade_elevations)]}
+              'walk_blade_elevation_degrees': [min(walk_blade_elevations), max(walk_blade_elevations)],
+              'strike_tip_heights': strike_heights,
+              'min_corpse_z': min(corpse_bottoms) if corpse_bottoms else None}
     (directory/'checks.json').write_text(json.dumps(report, indent=2)+'\n')
     print('PASS: saved clips and subframes, loop/transition endpoints, IK, ground, grip, planted feet, textures')
     print(json.dumps(report, indent=2))

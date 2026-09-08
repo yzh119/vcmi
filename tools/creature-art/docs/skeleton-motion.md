@@ -6,8 +6,8 @@ shading uses a rest-position attribute, so the surface noise follows the mesh.
 The textured skull/chest/pelvis and source fingerprint remain the same. Hands
 retain their fixed finger shapes and explicit right-hand weapon socket.
 
-Five editable clips are generated: `HOLDING`, `MOVING`, `ATTACK_FRONT`,
-`MOVE_START`, and `MOVE_END`. The attack includes anticipation, a lifted front
+Thirteen editable clips are generated, totaling 82 original-count body frames
+per scale. The attack includes anticipation, a lifted front
 foot, wind-up, strike and recovery to holding. The rear foot stays planted.
 Weapon orientations interpolate between key quaternions to avoid a hand-basis
 flip as the forearm passes the blade direction. Start/end movement clips relocate
@@ -20,6 +20,31 @@ The walking carriage was revised after visual feedback: the blade now remains
 is lowered away from the face, and torso lean is reduced from 42–46 to 34–38
 degrees. These angles describe the new design, not a measured fit to all original
 frames. Movement start/end share the revised walk endpoint.
+
+## Full clip set
+
+| Groups | Frames per group | Behavior |
+|---|---:|---|
+| HOLDING, MOVING | 8 | Idle and raised-sword walk loops |
+| MOVE_START, MOVE_END | 2 | Enter and leave the phase-zero walk |
+| MOUSEON | 11 | Raise sword and free hand, then return |
+| HITTED | 6 | Recoil, settle forward, return |
+| DEFENCE | 11 | Raise guard, absorb impact, recover |
+| DEATH | 6 | Recoil, kneel, fold and settle prone |
+| TURN_L, TURN_R | 2 | Whole-body half-turn clips around a facing flip |
+| ATTACK_UP, ATTACK_FRONT, ATTACK_DOWN | 8 | Separate high, frontal and low strikes |
+
+`MotionRoot` parents the rig, controls and geometry. Its native keyed rotation
+turns the whole character; it does not substitute a spine twist. VCMI plays
+TURN_L, flips the rendered facing, then plays TURN_R. The shared frontal pose
+bridges the two clips. The preview includes their native frame order with that
+flip. Original DEF groups 9/10 are unused duplicate turns and are not exported.
+
+Death keeps the weapon attached and finishes prone, with a held final pose.
+During the collapse, a vertical root correction prevents the evaluated geometry
+from penetrating the ground. This is authored motion, not a rigid-body simulation
+or the original disintegrating bone pile. Other transient actions return to
+holding. Directional strikes have independently authored wrist and torso targets.
 
 ## Timing and foot contact
 
@@ -38,7 +63,7 @@ diagonal paths, direction flips and interrupted cycles require engine review.
 Dense review uses 30 fps, with key spans of 2 s holding, 0.8 s walk/attack and
 0.2 s start/end. Nonloop videos retain the endpoint for one additional frame.
 It is **not** substituted for the original sprite counts. Body exports retain
-8/8/8/2/2 frames, at 450x400 and 900x800. Actual game speed still depends on its
+the counts above, at 450x400 and 900x800. Actual game speed still depends on its
 animation settings. Loop exports omit the duplicate closure frame. Nonloop
 exports include both endpoints.
 
@@ -52,13 +77,13 @@ measured stance drift at subframes from 0.008757 to 0.000061 model units
 ```sh
 blender -b --python-exit-code 1 --python tools/creature-art/skeleton_motion.py -- \
   --model "$HOME/vcmi-art/skeleton-study/source/skeleton.glb" \
-  --out "$HOME/vcmi-art/skeleton-motion/review-04"
+  --out "$HOME/vcmi-art/skeleton-motion/full-review-01"
 
 blender -b --python-exit-code 1 --python tools/creature-art/test_skeleton_motion.py -- \
-  "$HOME/vcmi-art/skeleton-motion/review-04"
+  "$HOME/vcmi-art/skeleton-motion/full-review-01"
 
 tools/creature-art/.venv/bin/python tools/creature-art/motion_preview.py \
-  "$HOME/vcmi-art/skeleton-motion/review-04" \
+  "$HOME/vcmi-art/skeleton-motion/full-review-01" \
   --reference tools/creature-art/ref/cskele/body
 ```
 
@@ -68,11 +93,16 @@ skips review and sprite frames. Each `.blend` contains ordinary editable native
 Actions, IK controls, packed textures and a closure frame. The manifest retains
 the source hash, both profiles, code hashes/snapshots, camera and measurements.
 
-`test_skeleton_motion.py` reopens all five clips and checks 245 frame/subframe
+`test_skeleton_motion.py` reopens all thirteen clips and checks 577 frame/subframe
 samples for IK reach, saved-versus-authored positions, ground penetration,
 weapon rigidity, straight-line stance drift, loop and transition endpoints,
 rest-position attributes and embedded textures. Ground tolerance is 0.0002 model
-units (about 0.011 base pixels), allowing numerical IK error.
+units (about 0.011 base pixels), allowing numerical IK error. Death additionally
+checks every mesh at subframes against a 0.002-unit floor tolerance and requires
+a low final pose. Tests compare world transforms across the turn bridge and
+verify distinct sword-tip heights at directional strikes. A downward-strike
+interpolation initially exceeded reach by 0.002186 units; moving the free wrist
+closer reduced the full-set maximum IK error to 0.00009017.
 
 `motion_preview.py` checks counts against the extracted original layout, canvas
 dimensions and unclipped alpha bounds. It creates GIFs, scrub-able MP4s and
@@ -81,11 +111,10 @@ The contact sheet compares phases; it does not synchronize original game timing.
 
 ## Remaining skeleton work
 
-Review the five clips artistically, including silhouette at native size and the
-fixed free-hand pose. Complete `MOUSEON`, `HITTED`, `DEFENCE`, `DEATH`, `TURN_L`,
-`TURN_R`, `ATTACK_UP` and `ATTACK_DOWN`, then render body/shadow/overlay
+Review all thirteen clips artistically, including silhouette at native size,
+the fixed free-hand pose and the mirrored turn bridge. Render shadow/overlay
 layers, assemble and validate the full mod, and inspect actual battles.
-This body-only study is not installed as an incomplete replacement set.
+These exports currently contain the body pass and are not installed as a mod.
 
 The next creature is the zombie (`CZOMBI`). Reuse the inspection, explicit
 handedness, controls, motion checks and render pipeline; zombie proportions and

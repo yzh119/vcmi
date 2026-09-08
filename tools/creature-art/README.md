@@ -10,11 +10,11 @@ wrong canvas, an animation group missing at 3x but present at 2x, a creature who
 feet drift by four pixels across its idle loop.
 
 > **Status:** the concept, mesh, pose, render and mod assembly pipeline works.
-> The skeleton's full animation set passes format validation but still needs art
+> The legacy skeleton animation set passes format validation but still needs art
 > review. The separate [skeleton study](docs/skeleton-study.md) replaces its rig,
 > limbs and hands. The follow-up [motion study](docs/skeleton-motion.md) adds
-> refined limbs and five editable continuous clips, with original-count 1x/2x
-> body frames. Full sprite layers and in-game review remain. The next creature
+> refined limbs and thirteen editable continuous clips, with 82 original-count
+> body frames at each of 1x and 2x. Full sprite layers and in-game review remain. The next creature
 > after the skeleton is the zombie (`CZOMBI`).
 
 ## Why this exists
