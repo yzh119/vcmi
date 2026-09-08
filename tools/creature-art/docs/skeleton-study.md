@@ -68,6 +68,10 @@ and packed textures. It cannot certify artistic quality or animation continuity.
 
 ## Remaining work
 
+The [continuous motion follow-up](skeleton-motion.md) now refines the limbs and
+adds holding/walking/attack cycles plus start/end transitions. The notes below
+describe the boundary of this original four-pose stage.
+
 - Refine the simplified limb surfaces and proportions against the retained torso.
 - Review the wind-up, free hand and weight transfer at actual game size.
 - Add finger articulation if the action calls for releasing or changing the grip.

@@ -12,8 +12,10 @@ feet drift by four pixels across its idle loop.
 > **Status:** the concept, mesh, pose, render and mod assembly pipeline works.
 > The skeleton's full animation set passes format validation but still needs art
 > review. The separate [skeleton study](docs/skeleton-study.md) replaces its rig,
-> limbs and hands and supplies four editable key poses; it is not a finished
-> replacement animation set.
+> limbs and hands. The follow-up [motion study](docs/skeleton-motion.md) adds
+> refined limbs and five editable continuous clips, with original-count 1x/2x
+> body frames. Full sprite layers and in-game review remain. The next creature
+> after the skeleton is the zombie (`CZOMBI`).
 
 ## Why this exists
 
