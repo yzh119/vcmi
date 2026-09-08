@@ -9,9 +9,11 @@ that catch the mistakes that are expensive to find by hand: a frame rendered on 
 wrong canvas, an animation group missing at 3x but present at 2x, a creature whose
 feet drift by four pixels across its idle loop.
 
-> **Status:** early. The scaffold and validator work today. The rendering side
-> (3D reconstruction, rigging, batch render) is not here yet — see
-> [Roadmap](#roadmap).
+> **Status:** the concept, mesh, pose, render and mod assembly pipeline works.
+> The skeleton's full animation set passes format validation but still needs art
+> review. The separate [skeleton study](docs/skeleton-study.md) replaces its rig,
+> limbs and hands and supplies four editable key poses; it is not a finished
+> replacement animation set.
 
 ## Why this exists
 
