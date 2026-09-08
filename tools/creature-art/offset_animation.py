@@ -65,7 +65,9 @@ def main():
                            'sourceSHA256': digest(source), 'outputSHA256': digest(dest)})
     if not report:
         raise ValueError('No animation frames found')
-    (args.out / 'offset-provenance.json').write_text(json.dumps(report, indent=2) + '\n')
+    provenance = args.out / 'offset-provenance.json'
+    previous = json.loads(provenance.read_text()) if provenance.exists() else []
+    provenance.write_text(json.dumps(previous + report, indent=2) + '\n')
     print(json.dumps({'translatedFrames': len(report), 'offset1x': [args.offset_x, args.offset_y],
                       'visiblePixelsPreserved': True}))
 

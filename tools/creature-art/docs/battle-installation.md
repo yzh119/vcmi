@@ -178,3 +178,44 @@ animation PNGs and JSONs are byte-identical to installed 0.5.0, and final valida
 has zero errors/warnings. Package 0.6.0 is installed with 0.5.0 backed up under
 `~/vcmi-art/creature-backdrop-03/installed-05-backup`. Source, prompt, two comparison
 figures, provenance and validation are in `creature-backdrop-03`.
+
+## Walking-dead registration and stable-ground shadows (0.7.0)
+
+Walking-dead holding silhouettes were centered at x=75 inside the 100px showcase.
+Shift all 354 associated PNGs (160 bodies, 160 shadows, 34 outlines) left 25 logical
+pixels, retaining the same canvases and visible pixels. The center becomes x=50.
+This affects battle placement too. `offset_animation.py` now appends provenance
+so the previous skeleton registration audit survives a second-creature operation.
+
+```sh
+tools/creature-art/.venv/bin/python tools/creature-art/offset_animation.py \
+  --source-mod "$HOME/vcmi-art/creature-backdrop-03/mod" \
+  --out "$HOME/vcmi-art/creature-game-04/mod" --creature CZOMBI --offset-x -25
+tools/creature-art/.venv/bin/python tools/creature-art/stabilize_shadows.py \
+  --source-mod "$HOME/vcmi-art/creature-game-04/mod" \
+  --out "$HOME/vcmi-art/creature-game-05/mod" \
+  --ground CSKELE=267 --ground CZOMBI=266
+```
+
+The native shadow algorithm moves its ground anchor with the lowest alpha pixel
+of each frame and thresholds alpha at 128. Measured ground-anchor spans: skeleton
+movement 4.5 logical pixels, skeleton front attack 6.5, walking-dead movement 2.5.
+The new offline projection fixes ground to the authoring camera's ground value,
+uses continuous alpha/bilinear projection and 0.8-logical-pixel Gaussian blur.
+1x is derived from the same 2x shadow. No temporal averaging or pose retiming.
+These are still simplified sheared shadows, not physical Blender shadow renders.
+
+Movement maximum adjacent-frame alpha L1 change divided by previous alpha mass:
+skeleton 1.083 -> 0.643; walking dead 0.489 -> 0.357. This measures pixel changes,
+including legitimate pose changes, and responds to blur. It is not a perceptual
+flicker score: skeleton front-attack change increases 1.537 -> 1.623. The invariant
+improvement is a fixed projection ground anchor; actual shadow review remains
+necessary. Reports retain all 26 group measurements, not just improved groups.
+
+All 324 new shadows have nonempty alpha, alpha <=128, black RGB and unchanged
+canvas dimensions. All non-shadow PNGs are byte-identical to the registered source.
+Final original-DEF validation: zero errors/warnings, 42 infos. 0.7.0 is installed
+with 0.6.0 backed up in `creature-game-05/installed-06-backup`. Both creature blog
+showcase figures now use the accepted background. Six MP4 comparisons isolate
+shadow changes with identical body layers, using review speeds rather than
+claiming measured in-game timing. Gallery: `/demos/necropolis-creatures-game-02/`.
