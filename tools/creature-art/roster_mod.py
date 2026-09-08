@@ -44,6 +44,9 @@ def main():
             'units':[]}
     for spec in args.unit:
         creature,directory,ground=spec.split('=');creature=creature.upper();directory=Path(directory);ground=float(ground)
+        export=json.loads((directory/'manifest.json').read_text())
+        if export.get('previewOnly') or export.get('artisticallyRejected'):
+            raise ValueError(f'Incomplete or rejected appearance export: {directory}')
         layout,canvas,skipped=layout_from_def(args.lod,creature)
         config=build_animation(creature,layout,'creatures/'+creature.lower()+'/',0,False)
         unit={'creature':creature,'sourceManifestSHA256':digest(directory/'manifest.json'),

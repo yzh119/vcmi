@@ -3,7 +3,7 @@
 
 Second stage of the pipeline: the concept defines the design, this produces
 something that can be rigged and posed. Meshy is used only for this — concepts
-come from FLUX, and rigging for non-humanoid creatures goes elsewhere.
+may come from a reference-guided image generator; rigging remains a separate stage.
 
     export MESHY_API_KEY=...
     gen_mesh.py concept/skeleton-front.png --out mesh/skeleton
@@ -18,6 +18,7 @@ is free and measurably better than sending the padding too.
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 import sys
@@ -91,6 +92,8 @@ def main(argv=None):
     parser.add_argument("--topology", default="quad", choices=["quad", "triangle"],
                         help="quad deforms better once rigged (default)")
     parser.add_argument("--no-texture", action="store_true")
+    parser.add_argument("--no-image-enhancement", action="store_true", help="preserve an already reviewed concept")
+    parser.add_argument("--texture-resolution", choices=["2k", "4k", "8k"], default="2k")
     parser.add_argument("--no-crop", action="store_true", help="send the frame as-is")
     parser.add_argument("--format", default="glb", help="which model_urls entry to download")
     args = parser.parse_args(argv)
@@ -106,11 +109,24 @@ def main(argv=None):
         "topology": args.topology,
         "target_polycount": args.polycount,
         "should_texture": not args.no_texture,
+
     }
+
+    if args.model == "meshy-5":
+        if args.no_image_enhancement or args.texture_resolution != "2k":
+            parser.error("Meshy 5 does not support enhancement control or higher-resolution textures")
+    else:
+        payload["texture_resolution"] = args.texture_resolution
+        payload["image_enhancement"] = not args.no_image_enhancement
 
     print("submitting %s ..." % args.image, flush=True)
     task_id = request(API, key, payload)["result"]
     print("  task %s" % task_id, flush=True)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.with_suffix(".pending.json").write_text(json.dumps({
+        "task_id": task_id, "source_sha256": hashlib.sha256(Path(args.image).read_bytes()).hexdigest(),
+        "parameters": {k: v for k, v in payload.items() if k != "image_url"}
+    }, indent=2) + "\n")
     task = poll(task_id, key)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
