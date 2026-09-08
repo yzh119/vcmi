@@ -10,7 +10,7 @@ Both 1x and 2x are included (324 body PNGs). These are the unupgraded skeleton
 and walking dead. CWSKEL and CZOMLO upgrades, portraits and adventure-map graphics
 are not replaced. In-game testing should use unupgraded stacks in battle.
 
-The engine derives sheared shadows (`generateShadow: 2`) for every group and
+The initial 0.1.0 package asked the engine to derive sheared shadows (`generateShadow: 2`) for every group and
 hover outlines (`generateOverlay: 1`) for holding/mouseon. This uses the new body
 alpha rather than stale original shadow shapes. It is the engine's simplified
 projection, not a Blender shadow-catcher pass. Both SDL backends support these
@@ -50,3 +50,80 @@ The mod was copied into the user VCMI Mods directory, added to the active preset
 and a fresh client reported `Loading mod: OK (necropolis-creature-animations)`.
 This is native loading verification, not proof of all battle animation timing,
 contact, shadow or selection behavior. Existing online previews remain body-only.
+
+## Skeleton canvas registration (0.2.0, mod only)
+
+The user reported the creature information portrait was right-aligned, then
+clarified this was a creature showcase issue. CCreaturePic crops single-hex creatures at x=150 in a
+100-pixel window, so a new silhouette centered at x=224.5 appeared at x=74.5.
+
+The user explicitly requested a mod-only solution. All provisional engine/schema
+changes were reverted. `offset_animation.py` instead shifts all 164 skeleton PNGs
+left 25 logical pixels (50 at 2x), retaining fixed canvases, frame counts and every
+visible pixel. No creature configuration override is needed. The unchanged preview
+crop now places the silhouette at x=49.5. This also changes the body position within
+the battle canvas: the holding-frame bottom-band mean X goes from 219.2 to 194.2,
+compared with 196.5 in the original. It is not a preview-only transformation.
+
+```sh
+tools/creature-art/.venv/bin/python tools/creature-art/offset_animation.py \
+  --source-mod "$HOME/vcmi-art/creature-game-01/mod" \
+  --out "$HOME/vcmi-art/creature-game-02/mod" --creature CSKELE --offset-x -25
+```
+
+The tool checks translated content byte-for-byte and alpha histograms, rejecting
+any visible clipping. Revalidation still has zero errors/warnings. Zombie frames
+and animation JSONs are byte-identical. Engine-generated effects follow the shifted
+body alpha. Package 0.2.0 records this registration; restart VCMI to clear old cached
+images. Authoring exports and their existing online animation galleries remain
+unchanged; `creature-game-02` holds the corrected installation and provenance.
+
+## Precomputed effects (0.3.0, mod only)
+
+The user observed stuttering on first display that went away after caching.
+`bake_effects.cpp` calls the existing SDL3 `drawShadow` and `drawOutline` functions
+in a standalone offline executable. It produces 324 shadows and 72 idle/hover
+outlines alongside the 324 unchanged registered body PNGs. Full canvases and all
+frame counts remain intact. The animation JSONs no longer request runtime effect
+generation. The standard loader finds `-shadow.png` and `-overlay.png` and can
+trim their transparent padding internally, preserving the logical canvas.
+
+Build the helper against the already-built SDL3 object and facade (macOS example):
+
+```sh
+c++ -std=c++20 -O2 -I/opt/homebrew/include \
+  tools/creature-art/bake_effects.cpp \
+  build/clientsdl3/CMakeFiles/vcmisdl3.dir/render/SDL_Extensions.cpp.o \
+  -L/opt/homebrew/lib -lSDL3 -lSDL3_image -ltbb \
+  -Lbuild/bin -lvcmi -Wl,-dead_strip -Wl,-rpath,"$PWD/build/bin" \
+  -o /tmp/bake_effects
+/tmp/bake_effects bake "$HOME/vcmi-art/creature-game-03/mod"
+/tmp/bake_effects verify "$HOME/vcmi-art/creature-game-03/mod"
+```
+
+Copy the registered 0.2.0 package to a new output before baking. The helper expects
+this pipeline's body filenames without hyphens, and holding_/mouseon_ names for
+outline groups. After baking succeeds, remove `generateShadow` and
+`generateOverlay` from all four animation JSONs, then validate the final mod.
+Do not remove these fields before effect generation finishes. `verify` regenerates
+and compares every saved effect pixel. `generated` and `prebaked` benchmark body
+loading with either computed or loaded effects; neither mode writes assets.
+
+The engine sources and binaries retain their normal implementation. Restart VCMI
+to load the updated assets instead of the active process's cache. This removes
+runtime effect computation; PNG decoding, scaling and GPU upload still occur.
+
+On this machine, one fresh-process sweep of all 324 body frames and 396 effects
+at both scales took 203,810 ms when generating effects, versus 513.249 ms loading
+precomputed PNGs (a second fresh-process load took 491.436 ms). The sweep eagerly
+visits the complete package; the game loads frames as needed. OS disk cache was
+not flushed. These numbers exclude game startup, GPU upload and engine trimming,
+so they are not an end-to-end cold-start speedup. The report is stored at
+`~/vcmi-art/creature-game-03/benchmark.json`.
+
+All 396 saved effects passed pixel-for-pixel comparison with regenerated native
+surfaces. All 720 PNGs have nonempty alpha and original full canvas sizes. All four
+animation JSONs differ from 0.2.0 only by removal of generation flags. The final
+validator reports zero errors/warnings and 42 informational motion findings.
+Installation 0.3.0 is byte-verified, with 0.2.0 backed up; the running game was not
+restarted. `effects-manifest.json` and `effect-verification.json` record this audit.
