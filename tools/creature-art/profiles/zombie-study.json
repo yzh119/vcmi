@@ -1,0 +1,161 @@
+{
+  "source_sha256": "ff3469ee9169ff0e3d8d668a146113f317adb7aea4a740b9ef5d95a17fc4b29d",
+  "label": "Zombie",
+  "fps": 30,
+  "camera": {
+    "azimuth": -65,
+    "elevation": 15,
+    "height": 82,
+    "ground": 266
+  },
+  "clips": {
+    "HOLDING": {
+      "sprite_frames": 8,
+      "seconds": 2,
+      "loop": true
+    },
+    "MOVING": {
+      "sprite_frames": 10,
+      "seconds": 1,
+      "loop": true
+    },
+    "ATTACK_FRONT": {
+      "sprite_frames": 7,
+      "seconds": 1.2,
+      "loop": false
+    }
+  },
+  "stance": {
+    "hips": [
+      0,
+      0,
+      0.96
+    ],
+    "lean": 8,
+    "head_tilt": -8,
+    "RightArm": {
+      "target": [
+        -0.19,
+        -0.28,
+        1.05
+      ],
+      "pole": [
+        -0.44,
+        0.08,
+        1.14
+      ]
+    },
+    "LeftArm": {
+      "target": [
+        0.22,
+        -0.04,
+        0.88
+      ],
+      "pole": [
+        0.43,
+        0.12,
+        1.05
+      ]
+    },
+    "RightLeg": {
+      "target": [
+        -0.13,
+        0.04,
+        0.106
+      ],
+      "pole": [
+        -0.15,
+        -0.6,
+        0.5
+      ]
+    },
+    "LeftLeg": {
+      "target": [
+        0.13,
+        -0.1,
+        0.108
+      ],
+      "pole": [
+        0.15,
+        -0.6,
+        0.5
+      ]
+    },
+    "blade_elevation": 68
+  },
+  "walk": {
+    "stride": 0.38,
+    "stance_fraction": 0.68,
+    "right_lift": 0.035,
+    "left_lift": 0.07,
+    "arm_swing": 0.045,
+    "hip_bob": 0.016
+  },
+  "attack_keys": [
+    [
+      0,
+      {}
+    ],
+    [
+      0.25,
+      {
+        "lean": -5,
+        "RightArm": {
+          "target": [
+            -0.22,
+            0.06,
+            1.72
+          ],
+          "pole": [
+            -0.45,
+            0.35,
+            1.43
+          ]
+        },
+        "blade_elevation": 130
+      }
+    ],
+    [
+      0.46,
+      {
+        "lean": 27,
+        "RightArm": {
+          "target": [
+            -0.2,
+            -0.48,
+            1.05
+          ],
+          "pole": [
+            -0.45,
+            -0.3,
+            1.18
+          ]
+        },
+        "blade_elevation": 5
+      }
+    ],
+    [
+      0.62,
+      {
+        "lean": 23,
+        "RightArm": {
+          "target": [
+            -0.22,
+            -0.37,
+            1.0
+          ],
+          "pole": [
+            -0.44,
+            -0.13,
+            1.08
+          ]
+        },
+        "blade_elevation": -30
+      }
+    ],
+    [
+      1,
+      {}
+    ]
+  ]
+}

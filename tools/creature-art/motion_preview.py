@@ -6,6 +6,7 @@ Requires Pillow and ffmpeg. All crops share the holding camera's pixel origin.
 
 import argparse
 import json
+import html as html_module
 from pathlib import Path
 import subprocess
 
@@ -36,6 +37,7 @@ def main():
     args = parser.parse_args()
     p = args.directory
     manifest = json.loads((p/'manifest.json').read_text())
+    label = html_module.escape(manifest['profile'].get('label', 'Skeleton'))
     groups = [name.lower() for name in manifest['clips']]
     reference = json.loads((args.reference.parent/'layout.json').read_text())
     counts = {g['name']: len(g['frames']) for g in reference['groups']}
@@ -56,9 +58,9 @@ def main():
     ref_center = center(args.reference/'holding_00.png')
     html = ['<!doctype html><html lang="en"><meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width,initial-scale=1">',
-            '<title>Skeleton motion review</title>',
+            f'<title>{label} motion review</title>',
             '<style>body{background:#1c1d21;color:#ddd;font:16px system-ui;max-width:1000px;margin:32px auto;padding:16px}video{width:360px;max-width:100%}img{max-width:100%}section{display:inline-block;vertical-align:top;margin:12px}p{line-height:1.6}</style>',
-            '<h1>Skeleton motion review</h1><p>Editable skeleton clips. Videos show the 30 fps bake at 2× game scale. '
+            f'<h1>{label} motion review</h1><p>Editable {label.lower()} clips. Videos show the 30 fps bake at 2× game scale. '
             'Pause or scrub to inspect. Body pass only; no in-game acceptance yet. '
             'Attack includes recovery to holding. Movement is shown in place.</p>']
     for group in groups:
@@ -127,20 +129,21 @@ def main():
         html.append('<h2>Turn sequence</h2><p>Native two-frame clips in engine order: TURN_L, facing flip, TURN_R. Holding bookends are added for inspection.</p><img src="turn-order.gif" alt="Combined turn sequence">')
     # Original-count frames, aligned by phase; not a claim of matched engine timing.
     width, height = 180, 175
-    sheet = Image.new('RGB', (8*width, 6*height), BACKGROUND)
+    columns = max(counts[g.upper()] for g in groups[:3])
+    sheet = Image.new('RGB', (columns*width, len(groups[:3])*2*height), BACKGROUND)
     draw = ImageDraw.Draw(sheet)
     for group_index, group in enumerate(groups[:3]):
         for version, source, offset in [('Original', args.reference, ref_center),
                                          ('Study', p/'sprites1x', new_center/2)]:
             row = group_index*2+(version == 'Study')
-            for i in range(8):
+            for i in range(counts[group.upper()]):
                 raw = tile(source/(group+'_%02d.png' % i), offset, 1)
                 x, y = i*width, row*height
                 sheet.paste(raw, (x, y+22), raw)
                 draw.text((x+4, y+4), '%s %s %d' % (version, group, i), fill='white')
     sheet.save(output/'native-frames.png')
     sheet.resize((sheet.width*2, sheet.height*2), Image.Resampling.NEAREST).save(output/'frames-2x.png')
-    html.append('<h2>Original-count frames at 1×</h2><p>Shared scale and crop per row; original attack frames are phase references. No individual frame fitting.</p><img src="native-frames.png" alt="Original and new eight-frame sequences"></html>')
+    html.append('<h2>Original-count frames at 1×</h2><p>Shared scale and crop per row; original attack frames are phase references. No individual frame fitting.</p><img src="native-frames.png" alt="Original and new native-frame sequences"></html>')
     (output/'index.html').write_text('\n'.join(html)+'\n')
     print(output/'index.html')
 

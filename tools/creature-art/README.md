@@ -14,8 +14,10 @@ feet drift by four pixels across its idle loop.
 > review. The separate [skeleton study](docs/skeleton-study.md) replaces its rig,
 > limbs and hands. The follow-up [motion study](docs/skeleton-motion.md) adds
 > refined limbs and thirteen editable continuous clips, with 82 original-count
-> body frames at each of 1x and 2x. Full sprite layers and in-game review remain. The next creature
-> after the skeleton is the zombie (`CZOMBI`).
+> body frames at each of 1x and 2x. Full sprite layers and in-game review remain.
+> The [zombie study](docs/zombie-study.md) starts `CZOMBI` with a repaired skin rig,
+> a cleaver and three editable clips: holding, movement and front attack
+> (25 body frames per scale).
 
 ## Why this exists
 
