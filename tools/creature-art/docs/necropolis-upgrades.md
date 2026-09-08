@@ -15,8 +15,12 @@ Rotated bounding-box corners must not substitute for actual mesh vertices.
 
 Candidate `~/vcmi-art/necropolis-roster/mod-08-final` validates against H3sprite.lod:
 84 informational findings, zero warnings/errors. Previous creature/background
-files remain byte-identical before package metadata is updated. Installed game
-remains 0.7.0; the 0.8.0 candidate has not had in-game acceptance.
+files remain byte-identical before package metadata is updated. The 0.8.0 package is now installed: all 1,463 files match the candidate, and
+installed-copy validation also reports 84 infos, zero warnings/errors. A fresh
+client reports `Loading mod: OK (necropolis-creature-animations)`. Complete battle
+contact/timing acceptance remains pending. Previous 0.7.0 backup is under
+`~/vcmi-art/necropolis-roster/installed-07-backup-20260908-094525`; file hashes and
+client logs are alongside in `installation-08.json` and `installed-08-client.log`.
 
 Reproduce packaging after the Blender exports:
 

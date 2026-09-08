@@ -1,4 +1,10 @@
-# Skeleton and walking-dead battle installation
+# Necropolis creature battle installation
+
+Current installed package: **0.8.0**, including CSKELE, CZOMBI, CWSKEL and CZOMLO.
+The two upgrades each retain 13 native groups (82/80 frames per scale). All 1,463
+installed files match the package; validation reports 84 infos, zero warnings or
+errors. A fresh client successfully loads the mod. See [upgrade details](necropolis-upgrades.md).
+The sections below preserve the earlier installation history.
 
 The reviewed bodies are now assembled as `necropolis-creature-animations`, a
 separate local graphical mod. Source animations are unchanged:
