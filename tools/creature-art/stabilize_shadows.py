@@ -21,6 +21,14 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def project_shadow(alpha, ground, softness=0.8):
+    """Project a 2x body alpha using logical-pixel ground/softness parameters."""
+    projected = alpha.transform(alpha.size, Image.Transform.AFFINE,
+        (1, -1, 2 * ground, 0, 2, -2 * ground), resample=Image.Resampling.BILINEAR)
+    projected = projected.point(lambda v: round(v * 0.5))
+    return projected.filter(ImageFilter.GaussianBlur(softness * 2))
+
+
 def churn(frames, loop):
     arrays = [np.asarray(frame, dtype=float) / 255 for frame in frames]
     pairs = list(zip(arrays, arrays[1:]))
@@ -52,11 +60,7 @@ def main():
                 alpha = Image.open(body).convert('RGBA').getchannel('A')
                 old_anchors.append((alpha.getbbox()[3] - 1) / 2)
                 # Inverse of x'=x+0.5*y-0.5*ground, y'=0.5*y+0.5*ground.
-                projected = alpha.transform(alpha.size, Image.Transform.AFFINE,
-                    (1, -1, 2 * ground, 0, 2, -2 * ground),
-                    resample=Image.Resampling.BILINEAR)
-                projected = projected.point(lambda v: round(v * 0.5))
-                projected = projected.filter(ImageFilter.GaussianBlur(args.softness * 2))
+                projected = project_shadow(alpha, ground, args.softness)
                 shadow_name = relative.with_name(relative.stem + '-shadow.png')
                 before.append(Image.open(args.source_mod / 'content/Sprites2x' / shadow_name).getchannel('A'))
                 after.append(projected)
