@@ -67,3 +67,33 @@ still controls both behaviors. Copy `layer-review.html` to the output as
 effect frames (frame 0 is drawn as a base, like CShowableAnim::BASE).
 The inspector deliberately permits impossible combinations and is not a
 game-state emulator or evidence of in-game click/upgrade testing.
+
+## Remaining building interiors (0.3)
+
+`prepare_building_inputs.py --data DATA --baseline layered-02 --out buildings-03`
+decodes the 41 remaining base images, including every upgrade stage. It pads
+each original onto a square magenta canvas for individual built-in image_gen
+edits. Inspect the originals and generate one image per job, saving it to
+`buildings-03/generated/<name>.png`; retain the exact prompts alongside them.
+
+`refine_buildings.py --baseline layered-02 --inputs buildings-03 --out layered-03`
+registers generated subject bounds to each original subject bounds, then blends
+only interior pixels into the 2x base. The original alpha is authoritative.
+For animated buildings, the union of all later overlay-frame alpha (expanded by
+two 2x pixels) protects the base from texture changes in animated areas.
+All 58 later frames are copied without modification. The castle and background
+are inherited from the baseline, so all 42 town layers now have generated static
+interior detail. Adventure-map images remain the prior conservative 2x versions.
+
+Reopened files must retain alpha and dimensions exactly, have actual changed
+interior pixels, and leave protected animation pixels unchanged. All unrelated
+mod resources must remain byte-identical before updating mod version metadata.
+The manifest records per-input/output hashes, registration bounds, blend coverage
+and tool provenance. This preserves original footprints; it does not establish
+pixel-exact agreement of generated internal architecture with the source.
+
+For the gallery, copy `layer-review.html` to the new output as `index.html` and
+the prompts to `prompts.md`. Copy each refined resource's previous `0_0.png` to
+`before/<RESOURCE>.png` in the output. The previous/current toggle then compares
+the same selected buildings with identical overlays. Local NumPy 2.0.2 was also
+used to independently audit visible pixel changes, alpha and overlay equality.
