@@ -44,7 +44,9 @@ def main():
     for name in names:
         spec=config['structures'][name];image,counts=frame(defs.extract(sprite,si,spec['animation']))
         image.save(args.out/(name+'.png'));layers.append((name,spec,image,counts))
-    for name,spec,image,counts in sorted(layers,key=lambda row:(row[1].get('z',0),row[1]['y'])):town.alpha_composite(image,(spec['x'],spec['y']))
+    # CBuildingRect compares z only; equal-z ordering in this offline reference
+    # is selection order and is not a claim about a particular engine state.
+    for name,spec,image,counts in sorted(layers,key=lambda row:row[1].get('z',0)):town.alpha_composite(image,(spec['x'],spec['y']))
     town.convert('RGB').save(args.out/'town-full-reference.png')
     manifest={'background':{'resource':'TBNCBACK.PCX','size':list(background.size),'sha256':hashlib.sha256(raw).hexdigest()},'structures':[{'name':name,'resource':spec['animation'],'position':[spec['x'],spec['y']],'z':spec.get('z',0),'size':list(im.size),'frames':counts} for name,spec,im,counts in layers],'map':{}}
     for label,name in [('village','AVCNECR0.DEF'),('fort','AVCNECX0.DEF'),('capitol','AVCNECZ0.DEF')]:
