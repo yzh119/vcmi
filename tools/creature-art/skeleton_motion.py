@@ -90,7 +90,11 @@ class Motion:
             result['hips'][2] -= .014*math.cos(2*math.tau*t)
             result['lean'] += 2*math.sin(2*math.tau*t)
             result['LeftArm']['target'][1] += .045*wave
-            result['RightArm']['target'][2] += .022*math.sin(math.tau*t)
+            swing = self.profile['walk']['weapon_arm_swing']
+            stride_wave = math.cos(math.tau*t)
+            result['RightArm']['target'][1] -= swing['wrist_forward']*stride_wave
+            result['RightArm']['target'][2] += swing['wrist_lift']*stride_wave
+            result['RightArm']['pole'][1] -= swing['elbow_forward']*stride_wave
             carry = self.profile['walk']['blade_elevation_degrees']
             angle = math.radians(carry['mean']+carry['amplitude']*math.cos(math.tau*t))
             result['blade_direction'] = [0, -math.cos(angle), math.sin(angle)]

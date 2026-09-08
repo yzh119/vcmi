@@ -21,6 +21,18 @@ is lowered away from the face, and torso lean is reduced from 42–46 to 34–38
 degrees. These angles describe the new design, not a measured fit to all original
 frames. Movement start/end share the revised walk endpoint.
 
+The weapon arm now swings with the walk cycle. The profile controls wrist
+forward travel/lift and elbow-pole travel together, so the upper arm rotates at
+the shoulder while the forearm follows. The wrist moves forward on the first
+contact, back halfway through the cycle, then returns. Start/end clips use the
+same revised endpoint. Blade elevation remains 57–73 degrees.
+
+Saved-frame checks measure movement relative to the shoulder, excluding apparent
+motion from torso sway. The wrist's forward/back range increases from 0.014908
+to 0.360025 model units; elbow range is 0.339639. The previous clip fails the new
+arm-swing check despite passing IK and blade-elevation checks. These are motion
+checks, not a claim of matching the original frame for frame.
+
 ## Full clip set
 
 | Groups | Frames per group | Behavior |
@@ -77,14 +89,15 @@ measured stance drift at subframes from 0.008757 to 0.000061 model units
 ```sh
 blender -b --python-exit-code 1 --python tools/creature-art/skeleton_motion.py -- \
   --model "$HOME/vcmi-art/skeleton-study/source/skeleton.glb" \
-  --out "$HOME/vcmi-art/skeleton-motion/full-review-01"
+  --out "$HOME/vcmi-art/skeleton-motion/full-review-02"
 
 blender -b --python-exit-code 1 --python tools/creature-art/test_skeleton_motion.py -- \
-  "$HOME/vcmi-art/skeleton-motion/full-review-01"
+  "$HOME/vcmi-art/skeleton-motion/full-review-02"
 
 tools/creature-art/.venv/bin/python tools/creature-art/motion_preview.py \
-  "$HOME/vcmi-art/skeleton-motion/full-review-01" \
-  --reference tools/creature-art/ref/cskele/body
+  "$HOME/vcmi-art/skeleton-motion/full-review-02" \
+  --reference tools/creature-art/ref/cskele/body \
+  --previous "$HOME/vcmi-art/skeleton-motion/full-review-01"
 ```
 
 Use a fresh output directory and do not edit sources during a render. `--no-render`
@@ -107,7 +120,8 @@ closer reduced the full-set maximum IK error to 0.00009017.
 `motion_preview.py` checks counts against the extracted original layout, canvas
 dimensions and unclipped alpha bounds. It creates GIFs, scrub-able MP4s and
 `preview/index.html`, plus an original/new contact sheet at actual 1x scale.
-The contact sheet compares phases; it does not synchronize original game timing.
+`--previous` additionally creates an original/previous/revised eight-frame walk
+comparison at a shared review rate. The contact sheet compares phases; it does not synchronize original game timing.
 
 ## Remaining skeleton work
 

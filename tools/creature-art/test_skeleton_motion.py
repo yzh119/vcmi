@@ -21,6 +21,7 @@ def main():
     manifest = json.loads((directory/'manifest.json').read_text())
     errors, lengths, bottoms, drifts, replay = [], [], [], [], []
     walk_blade_elevations = []
+    walk_wrists, walk_elbows, walk_shoulders = [], [], []
     endpoints = {}
     corpse_bottoms = []
     strike_heights = {}
@@ -52,6 +53,13 @@ def main():
                 original = clip['frames'][half_frame//2]
                 replay.extend((Vector(row[c]['actual'])-Vector(original[c]['actual'])).length for c in controls)
             if group == 'MOVING':
+                shoulder = arm.matrix_world @ arm.pose.bones['RightArm'].head
+                elbow = Vector(row['RightArm']['joint'])
+                wrist = Vector(row['RightArm']['actual'])
+                walk_wrists.append(wrist.y-shoulder.y)
+                walk_elbows.append(elbow.y-shoulder.y)
+                upper = elbow-shoulder
+                walk_shoulders.append(math.degrees(math.atan2(-upper.y, -upper.z)))
                 blade = weapons[-1]
                 tip = sum((v.co for v in blade.data.vertices[8:12]), Vector())/4
                 heel = sum((v.co for v in blade.data.vertices[:4]), Vector())/4
@@ -111,11 +119,19 @@ def main():
     assert max(lengths)-min(lengths) < 1e-5
     assert max(drifts) < 2e-4, ('planted foot drift', max(drifts))
     assert min(walk_blade_elevations) > 50, ('walk sword must stay raised', min(walk_blade_elevations))
+    wrist_swing = max(walk_wrists)-min(walk_wrists)
+    elbow_swing = max(walk_elbows)-min(walk_elbows)
+    shoulder_swing = max(walk_shoulders)-min(walk_shoulders)
+    assert wrist_swing > .30, ('weapon wrist must swing forward and back', wrist_swing)
+    assert elbow_swing > .12, ('weapon elbow must participate in the swing', elbow_swing)
+    assert shoulder_swing > 25, ('upper arm must rotate at the shoulder', shoulder_swing)
     report = {'evaluated_samples': checked, 'max_ik_error': max(errors),
               'max_replay_error': max(replay), 'min_sole_z': min(bottoms),
               'blade_length_range': max(lengths)-min(lengths), 'max_stance_drift': max(drifts),
               'walk_blade_elevation_degrees': [min(walk_blade_elevations), max(walk_blade_elevations)],
               'strike_tip_heights': strike_heights,
+              'walk_wrist_swing': wrist_swing, 'walk_elbow_swing': elbow_swing,
+              'walk_shoulder_swing_degrees': shoulder_swing,
               'min_corpse_z': min(corpse_bottoms) if corpse_bottoms else None}
     (directory/'checks.json').write_text(json.dumps(report, indent=2)+'\n')
     print('PASS: saved clips and subframes, loop/transition endpoints, IK, ground, grip, planted feet, textures')

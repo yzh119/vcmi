@@ -32,6 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory', type=Path)
     parser.add_argument('--reference', type=Path, required=True)
+    parser.add_argument('--previous', type=Path, help='Previous motion output for a walking comparison')
     args = parser.parse_args()
     p = args.directory
     manifest = json.loads((p/'manifest.json').read_text())
@@ -90,6 +91,25 @@ def main():
                 labels.text((180*i+4, row*175+4), '%s %s %d' % (label, group, i), fill='white')
         comparison.save(output/(group+'-frames.png'))
         html.append('<section><h2>%s</h2><video controls loop muted playsinline preload="metadata" poster="%s.gif" src="%s.mp4"></video><p><a href="%s-frames.png">Original / study frames</a></p></section>' % (group, group, group, group))
+    if args.previous and 'moving' in groups:
+        previous_center = center(args.previous/'sprites2x/holding_00.png')
+        frames = []
+        for i in range(counts['MOVING']):
+            frame = Image.new('RGB', (1080, 330), BACKGROUND)
+            labels = ImageDraw.Draw(frame)
+            for column, (label, source, offset, scale) in enumerate([
+                    ('Original', args.reference, ref_center, 1),
+                    ('Previous', args.previous/'sprites2x', previous_center, 2),
+                    ('Revised', p/'sprites2x', new_center, 2)]):
+                raw = tile(source/('moving_%02d.png' % i), offset, scale)
+                if scale == 1:
+                    raw = raw.resize((360, 306), Image.Resampling.NEAREST)
+                frame.paste(raw, (column*360, 24), raw)
+                labels.text((column*360+8, 6), label, fill='white')
+            frames.append(frame)
+        frames[0].save(output/'walk-comparison.gif', save_all=True, append_images=frames[1:],
+                       duration=100, loop=0, disposal=2)
+        html.append('<h2>Walking comparison</h2><p>Original, previous and revised carriage. Eight game frames at a shared review rate, with a fixed crop for each version.</p><img src="walk-comparison.gif" alt="Original, previous and revised walk">')
     if 'turn_l' in groups and 'turn_r' in groups:
         # ReverseAnimation plays TURN_L, flips facing, then plays TURN_R.
         sequence = [('holding', 0, False)]*4 + [('turn_l', i, False) for i in range(2)]

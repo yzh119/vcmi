@@ -75,13 +75,13 @@
       "RightArm": {
         "target": [
           -0.24,
-          -0.39,
-          1.02
+          -0.27,
+          0.93
         ],
         "pole": [
           -0.45,
-          0.03,
-          1.05
+          0.02,
+          0.98
         ]
       },
       "LeftArm": {
@@ -1190,6 +1190,11 @@
     "blade_elevation_degrees": {
       "mean": 65,
       "amplitude": 8
+    },
+    "weapon_arm_swing": {
+      "wrist_forward": 0.18,
+      "wrist_lift": 0.06,
+      "elbow_forward": 0.12
     }
   },
   "clips": {
