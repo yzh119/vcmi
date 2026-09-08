@@ -30,3 +30,10 @@ procedural/initialbootstrap history remains in necropolis-bootstrap.
 
 Lich/PowerLich and remaining families continue separately. No further changes to
 accepted Wight without a concrete issue or user feedback.
+
+High-resolution static renders are now provided separately from the concepts:
+`ghost-portraits-01/wight.png` and `wraith.png`, 1400x1600,64samples. The reusable
+`render_portrait.py` opens the delivered holding scenes, reframes the camera,
+renders transparent PNGs and verifies source hashes remain unchanged. The blog
+provides both neutral-background JPEGs and original transparent PNGs. These are
+new 3D renders, not upscaled native frames; no Wight model/motion change.
