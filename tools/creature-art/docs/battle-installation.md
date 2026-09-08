@@ -161,3 +161,20 @@ feedback. Both generated masters are 1100x1430; the improvement is in painted
 edge/detail definition, not a larger returned image. The requested 2000x2600 size
 was not honored by the tool. Review the actual 200x260 comparison before attributing
 quality to the prompt dimensions. All eight backgrounds use the refined master.
+
+### Small-panel readability (0.6.0)
+
+The user clarified that the remaining sharpness gap was in the offline creature
+composite, not an observation of game resource loading. No runtime loading defect
+has been established. A third built-in image edit reduces gravel/soil mottling,
+clarifies larger rock planes and separates ground cracks. Review uses the same
+200x260 background dimensions and identical creature/shadow crops on both sides.
+Separate 440-pixel-wide two-column skeleton and walking-dead figures replace the
+wide five-column figure for this comparison; these remain offline composites.
+
+Build with the same command using `creature-backdrop-03` and `--version 0.6.0`.
+All eight 1x-4x backgrounds are replaced. The master remains 1100x1430. Existing
+animation PNGs and JSONs are byte-identical to installed 0.5.0, and final validation
+has zero errors/warnings. Package 0.6.0 is installed with 0.5.0 backed up under
+`~/vcmi-art/creature-backdrop-03/installed-05-backup`. Source, prompt, two comparison
+figures, provenance and validation are in `creature-backdrop-03`.
