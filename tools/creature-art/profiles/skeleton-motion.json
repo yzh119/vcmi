@@ -68,15 +68,15 @@
       "hips": [
         0,
         0.02,
-        0.77
+        0.79
       ],
-      "lean": 42,
-      "neck": 10,
+      "lean": 36,
+      "neck": 6,
       "RightArm": {
         "target": [
           -0.24,
-          -0.31,
-          0.9
+          -0.39,
+          1.02
         ],
         "pole": [
           -0.45,
@@ -87,8 +87,8 @@
       "LeftArm": {
         "target": [
           0.21,
-          -0.34,
-          1.03
+          -0.24,
+          0.84
         ],
         "pole": [
           0.4,
@@ -122,8 +122,8 @@
       },
       "blade_direction": [
         0,
-        -1,
-        0.07
+        -0.3,
+        0.95
       ]
     },
     "windup": {
@@ -442,7 +442,11 @@
     "lift": 0.18,
     "hex_width": 44,
     "tiles_per_cycle": 1.6,
-    "foot_spread": 0.16
+    "foot_spread": 0.16,
+    "blade_elevation_degrees": {
+      "mean": 65,
+      "amplitude": 8
+    }
   },
   "clips": {
     "HOLDING": {

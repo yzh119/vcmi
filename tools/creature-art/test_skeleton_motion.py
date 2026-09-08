@@ -20,6 +20,7 @@ def main():
     directory = Path(sys.argv[sys.argv.index('--')+1])
     manifest = json.loads((directory/'manifest.json').read_text())
     errors, lengths, bottoms, drifts, replay = [], [], [], [], []
+    walk_blade_elevations = []
     endpoints = {}
     checked = 0
     for group, clip in manifest['clips'].items():
@@ -45,6 +46,11 @@ def main():
                 original = clip['frames'][half_frame//2]
                 replay.extend((Vector(row[c]['actual'])-Vector(original[c]['actual'])).length for c in controls)
             if group == 'MOVING':
+                blade = weapons[-1]
+                tip = sum((v.co for v in blade.data.vertices[8:12]), Vector())/4
+                heel = sum((v.co for v in blade.data.vertices[:4]), Vector())/4
+                axis = (blade.matrix_world @ tip-blade.matrix_world @ heel).normalized()
+                walk_blade_elevations.append(math.degrees(math.asin(max(-1, min(1, axis.z)))))
                 t = (frame-1)/(clip['closure_frame']-1)
                 travel = Vector(manifest['direction'])*manifest['stride']*t
                 for side, offset in [('Right', 0), ('Left', .5)]:
@@ -77,9 +83,11 @@ def main():
     assert min(bottoms) > -2e-4, ('ground penetration', min(bottoms))
     assert max(lengths)-min(lengths) < 1e-5
     assert max(drifts) < 2e-4, ('planted foot drift', max(drifts))
+    assert min(walk_blade_elevations) > 50, ('walk sword must stay raised', min(walk_blade_elevations))
     report = {'evaluated_samples': checked, 'max_ik_error': max(errors),
               'max_replay_error': max(replay), 'min_sole_z': min(bottoms),
-              'blade_length_range': max(lengths)-min(lengths), 'max_stance_drift': max(drifts)}
+              'blade_length_range': max(lengths)-min(lengths), 'max_stance_drift': max(drifts),
+              'walk_blade_elevation_degrees': [min(walk_blade_elevations), max(walk_blade_elevations)]}
     (directory/'checks.json').write_text(json.dumps(report, indent=2)+'\n')
     print('PASS: saved clips and subframes, loop/transition endpoints, IK, ground, grip, planted feet, textures')
     print(json.dumps(report, indent=2))

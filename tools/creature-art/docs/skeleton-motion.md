@@ -14,6 +14,13 @@ flip as the forearm passes the blade direction. Start/end movement clips relocat
 one foot at a time. Their endpoints join the authored phase-zero walk; arbitrary
 interrupted movement still needs in-game review.
 
+The walking carriage was revised after visual feedback: the blade now remains
+57–73 degrees above horizontal throughout the cycle, replacing the previous
+-4–32 degree forward-pointing range. The weapon wrist is higher, the free hand
+is lowered away from the face, and torso lean is reduced from 42–46 to 34–38
+degrees. These angles describe the new design, not a measured fit to all original
+frames. Movement start/end share the revised walk endpoint.
+
 ## Timing and foot contact
 
 `client/battle/CreatureAnimation.cpp` sets melee attack playback to
@@ -45,13 +52,13 @@ measured stance drift at subframes from 0.008757 to 0.000061 model units
 ```sh
 blender -b --python-exit-code 1 --python tools/creature-art/skeleton_motion.py -- \
   --model "$HOME/vcmi-art/skeleton-study/source/skeleton.glb" \
-  --out "$HOME/vcmi-art/skeleton-motion/review-03"
+  --out "$HOME/vcmi-art/skeleton-motion/review-04"
 
 blender -b --python-exit-code 1 --python tools/creature-art/test_skeleton_motion.py -- \
-  "$HOME/vcmi-art/skeleton-motion/review-03"
+  "$HOME/vcmi-art/skeleton-motion/review-04"
 
 tools/creature-art/.venv/bin/python tools/creature-art/motion_preview.py \
-  "$HOME/vcmi-art/skeleton-motion/review-03" \
+  "$HOME/vcmi-art/skeleton-motion/review-04" \
   --reference tools/creature-art/ref/cskele/body
 ```
 

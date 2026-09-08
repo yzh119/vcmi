@@ -74,11 +74,12 @@ class Motion:
             result = copy.deepcopy(self.profile['poses']['walk_contact'])
             wave = math.sin(math.tau*t)
             result['hips'][0] += .007*wave
-            result['hips'][2] = .77-.014*math.cos(2*math.tau*t)
-            result['lean'] = 44+2*math.sin(2*math.tau*t)
+            result['hips'][2] -= .014*math.cos(2*math.tau*t)
+            result['lean'] += 2*math.sin(2*math.tau*t)
             result['LeftArm']['target'][1] += .045*wave
             result['RightArm']['target'][2] += .022*math.sin(math.tau*t)
-            angle = math.radians(14+18*math.cos(math.tau*t))
+            carry = self.profile['walk']['blade_elevation_degrees']
+            angle = math.radians(carry['mean']+carry['amplitude']*math.cos(math.tau*t))
             result['blade_direction'] = [0, -math.cos(angle), math.sin(angle)]
             result['foot_pitch'] = {}
             duty = self.profile['walk']['stance_fraction']
