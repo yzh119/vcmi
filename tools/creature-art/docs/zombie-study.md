@@ -1,7 +1,7 @@
 # Zombie motion study
 
-`zombie_study.py` starts CZOMBI with three editable clips: holding, asymmetric
-shambling movement and an overhead cleaver attack. The original carries a short
+`zombie_study.py` authors all thirteen CZOMBI battle clips, including
+asymmetric movement, cleaver attacks, reactions, backward death and whole-body turns. The original carries a short
 blade. The legacy creature profile described it as unarmed and merely scaled
 skeleton animation deltas; this study has its own absolute targets and timing.
 No new mesh-generation or rigging API calls are used.
@@ -35,13 +35,21 @@ animation study, not an accepted final creature.
 |---|---:|---:|
 | HOLDING | 8 | 2 seconds |
 | MOVING | 10 | 1 second |
-| ATTACK_FRONT | 7 | 1.2 seconds |
+| ATTACK_FRONT, ATTACK_UP, ATTACK_DOWN | 7 each | 1.2 seconds each |
+| MOVE_START, MOVE_END | 1 each | 0.2 seconds each |
+| MOUSEON | 9 | 0.9 seconds |
+| HITTED | 7 | 0.7 seconds |
+| DEFENCE | 8 | 0.8 seconds |
+| DEATH | 9 | 0.9 seconds |
+| TURN_L, TURN_R | 3 each | 0.3 seconds each |
 
 These counts come from CZOMBI.DEF, not the skeleton. Review timing is authored;
 matching counts does not establish matching game playback speed. Each scale has
-25 body frames, on 450×400 / 900×800 canvases. The camera is calibrated once on
-holding, to 82 pixels tall and ground line 266 at 1x. There are 127 dense 30 fps
-review frames, with an endpoint for the nonlooping attack.
+80 body frames, on 450×400 / 900×800 canvases. The camera is calibrated once on
+holding, to 82 pixels tall and ground line 266 at 1x. There are 338 dense 30 fps
+review frames, with endpoints for nonlooping clips. Original duplicate turn groups
+9/10 are omitted. The one-frame native start/end clips sample transition midpoints;
+the editable Actions keep the complete transition.
 
 Walking uses a 0.38-unit stride with 68% stance duty. The right foot rises 0.035
 units and the left 0.070. Hermite return motion matches the stance velocity at
@@ -50,6 +58,12 @@ inferred forward motion measures sliding separately from in-place animation.
 Hands swing slightly, and the blade remains raised. Attack poses raise the blade,
 strike forward, follow through, then return to holding. They do not inherit the
 skeleton's BASE or sword-swing deltas.
+
+`ZombieRoot` parents the skin, rig, controls and cleaver socket. It rotates the
+whole character for turns and tilts it backward during death. Death height is
+corrected from evaluated geometry, then keyed; the corpse settles on its back
+with flexed legs. Reaction and attack endpoints return to holding. TURN_L ends
+at the same pose where TURN_R begins; preview inserts the engine facing flip.
 
 ## Reproduce
 
@@ -62,13 +76,13 @@ From `tools/creature-art`, with the existing Pillow environment:
 
 blender -b --python zombie_study.py -- \
   --model "$HOME/vcmi-art/zombie-study/source/zombie.glb" \
-  --out "$HOME/vcmi-art/zombie-study/review-01" --samples 24
+  --out "$HOME/vcmi-art/zombie-study/full-review-01" --samples 24
 
 blender -b --python test_zombie_study.py -- \
-  "$HOME/vcmi-art/zombie-study/review-01"
+  "$HOME/vcmi-art/zombie-study/full-review-01"
 
 .venv/bin/python motion_preview.py \
-  "$HOME/vcmi-art/zombie-study/review-01" --reference ref/czombi/body
+  "$HOME/vcmi-art/zombie-study/full-review-01" --reference ref/czombi/body
 ```
 
 Use a new empty output directory on every run. `--no-render` builds clips for
@@ -79,24 +93,27 @@ the previous fixed eight-column assumption failed for the zombie's 10/7 split.
 
 ## Checks
 
-Blender 5.2.1 reopened clips, 255 integer/half-frame samples:
+Blender 5.2.1 reopened clips, 667 integer/half-frame samples:
 
 | Measurement | Result (model units) |
 |---|---:|
-| Maximum IK error | 0.000065253 |
+| Maximum IK error | 0.000094265 |
 | Saved versus authored joint positions | 0.000000608 |
 | Loop endpoint displacement | 0 |
 | Maximum inferred stance drift | 0.000021750 |
-| Blade length variation | 0.000000380 |
+| Blade length variation | 0.000000443 |
 | Minimum evaluated skin Z | -0.001473490 |
 | Blade tip Z, wind-up / forward strike | 2.084313 / 0.995809 |
+| Strike tip Z, up / front / down | 1.857249 / 0.995809 / 0.390153 |
+| Final corpse skin maximum Z | 0.588744 |
 
 The first follow-through target exceeded arm reach by 0.075040 units; the IK
 check rejected it. The corrected target keeps the elbow solvable throughout the
-bake. Ground tolerance is 0.002 units; the small negative minimum remains within
+bake. Full-set checks also cover reaction endpoints, move transitions, a low
+corpse, whole-body turn motion and the shared turn bridge. Ground tolerance is 0.002 units; the small negative minimum remains within
 that tolerance and is not a claim of exact contact for every skin vertex.
 
 Outstanding: visual acceptance of body proportions/hand material and gait,
-remaining ten groups, shadow and owner-overlay passes, assembled-mod validation,
+shadow and owner-overlay passes, assembled-mod validation,
 and movement timing/contact in an actual battle. The legacy zombie pose profile
 is retained for reproducibility and is not the source for this study.

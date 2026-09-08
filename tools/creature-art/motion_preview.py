@@ -114,8 +114,8 @@ def main():
         html.append('<h2>Walking comparison</h2><p>Original, previous and revised carriage. Eight game frames at a shared review rate, with a fixed crop for each version.</p><img src="walk-comparison.gif" alt="Original, previous and revised walk">')
     if 'turn_l' in groups and 'turn_r' in groups:
         # ReverseAnimation plays TURN_L, flips facing, then plays TURN_R.
-        sequence = [('holding', 0, False)]*4 + [('turn_l', i, False) for i in range(2)]
-        sequence += [('turn_r', i, True) for i in range(2)] + [('holding', 0, True)]*4
+        sequence = [('holding', 0, False)]*4 + [('turn_l', i, False) for i in range(counts['TURN_L'])]
+        sequence += [('turn_r', i, True) for i in range(counts['TURN_R'])] + [('holding', 0, True)]*4
         frames = []
         for group, index, mirrored in sequence:
             raw = tile(p/'sprites2x'/('%s_%02d.png' % (group, index)), new_center)
@@ -126,7 +126,7 @@ def main():
             frames.append(frame)
         frames[0].save(output/'turn-order.gif', save_all=True, append_images=frames[1:],
                        duration=100, loop=0, disposal=2)
-        html.append('<h2>Turn sequence</h2><p>Native two-frame clips in engine order: TURN_L, facing flip, TURN_R. Holding bookends are added for inspection.</p><img src="turn-order.gif" alt="Combined turn sequence">')
+        html.append('<h2>Turn sequence</h2><p>Native clips in engine order: TURN_L, facing flip, TURN_R. Holding bookends are added for inspection.</p><img src="turn-order.gif" alt="Combined turn sequence">')
     # Original-count frames, aligned by phase; not a claim of matched engine timing.
     width, height = 180, 175
     columns = max(counts[g.upper()] for g in groups[:3])

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Editable zombie stance, asymmetric shamble and cleaver attack.
+"""Thirteen editable zombie battle animations with a skin rig and cleaver.
 
 Run with Blender --background --python zombie_study.py -- --model ... --out ...
 Uses the existing textured skin, reconstructs anatomical rest bones from joint
@@ -141,8 +141,16 @@ def pose(profile,group,t):
             p[side+'Arm']['target'][1]+=w['arm_swing']*math.cos(math.tau*(t+offset))
             p[side+'Arm']['pole'][1]+=.5*w['arm_swing']*math.cos(math.tau*(t+offset))
         p['blade_elevation']+=5*math.cos(math.tau*t)
-    elif group=='ATTACK_FRONT':
-        keys=profile['attack_keys']
+    elif group in ['MOVE_START','MOVE_END']:
+        u=t*t*(3-2*t)
+        start,end=(profile['stance'],pose(profile,'MOVING',0))
+        if group=='MOVE_END':start,end=end,start
+        p=mix(start,end,u)
+    elif group in ['TURN_L','TURN_R']:
+        u=t*t*(3-2*t)
+        p['root_yaw']=-65*(u if group=='TURN_L' else 1-u)
+    elif group=='ATTACK_FRONT' or group in profile['action_keys']:
+        keys=profile['attack_keys'] if group=='ATTACK_FRONT' else profile['action_keys'][group]
         for (ta,a),(tb,b) in zip(keys,keys[1:]):
             if ta<=t<=tb:
                 u=(t-ta)/(tb-ta);u=u*u*(3-2*u)
@@ -151,6 +159,10 @@ def pose(profile,group,t):
 
 
 def apply(arm,controls,p):
+    root=bpy.data.objects.get('ZombieRoot')
+    if root:
+        root.matrix_world=Matrix.Identity(4)
+        bpy.context.view_layer.update()
     for b in arm.pose.bones:b.matrix_basis=Matrix.Identity(4)
     hips=arm.pose.bones['Hips'];hips.matrix=Matrix.Translation(Vector(p['hips'])) @ arm.data.bones['Hips'].matrix_local.to_3x3().to_4x4()
     bpy.context.view_layer.update()
@@ -172,9 +184,21 @@ def apply(arm,controls,p):
         else: rotation=forearm.matrix.to_quaternion()
         controls[side+'Arm']['target'].rotation_quaternion=rotation
     bpy.context.view_layer.update()
+    if root:
+        root.rotation_euler=(math.radians(p['root_pitch']),0,math.radians(p['root_yaw']))
+        pivot=Vector(p['hips'])
+        root.location=pivot-root.rotation_euler.to_matrix() @ pivot
+        bpy.context.view_layer.update()
+        if p['floor_support']:
+            vertices=render.world_vertices([o for o in bpy.context.scene.objects if o.type=='MESH'],bpy.context.evaluated_depsgraph_get())
+            root.location.z+=(.003-min(v.z for v in vertices))*p['floor_support']
+            bpy.context.view_layer.update()
 
 
 def key(arm,controls,frame,previous):
+    root=bpy.data.objects['ZombieRoot']
+    root.keyframe_insert('location',frame=frame)
+    root.keyframe_insert('rotation_euler',frame=frame)
     objects=[c[k] for c in controls.values() for k in ['target','pole']]
     for b in arm.pose.bones:
         b.rotation_mode='QUATERNION'
@@ -212,17 +236,20 @@ def main():
         if o.type=='MESH' and o!=source:bpy.data.objects.remove(o,do_unlink=True)
     arm,body,audit=rebuild(source,old);hand,socket,blade=make_grip(arm)
     controls={side+limb:study.make_ik(arm,side,'arm' if limb=='Arm' else 'leg') for side in ['Right','Left'] for limb in ['Arm','Leg']}
+    root=study.empty('ZombieRoot',(0,0,0))
+    for obj in list(bpy.context.scene.objects):
+        if obj!=root and obj.type not in ['CAMERA','LIGHT'] and obj.parent is None:obj.parent=root
     apply(arm,controls,pose(p,'HOLDING',0))
     scene=bpy.context.scene;scene.render.fps=p['fps']
     if not args.no_render:render.calibrate_camera(camera,(900,800),cam['ground']*2,cam['height']*2,str(args.out/'calibration.png'))
     bpy.ops.file.pack_all()
     manifest={'profile':p,'profile_sha256':digest(args.profile),'source_sha256':digest(args.model),'scripts':hashes,'audit':audit,'clips':{},'body_only':True,'blender':bpy.app.version_string,'samples':args.samples}
     for group,spec in p['clips'].items():
-        for o in [arm]+[c[k] for c in controls.values() for k in ['target','pole']]:o.animation_data_clear()
+        for o in [arm,root]+[c[k] for c in controls.values() for k in ['target','pole']]:o.animation_data_clear()
         ticks=round(spec['seconds']*p['fps']);previous={}
         for tick in range(ticks+1):
             apply(arm,controls,pose(p,group,tick/ticks));key(arm,controls,tick+1,previous)
-        for o in [arm]+[c[k] for c in controls.values() for k in ['target','pole']]:linear_keys(o.animation_data.action)
+        for o in [arm,root]+[c[k] for c in controls.values() for k in ['target','pole']]:linear_keys(o.animation_data.action)
         scene.frame_start=1;scene.frame_end=ticks if spec['loop'] else ticks+1;scene.frame_set(1)
         bpy.ops.wm.save_as_mainfile(filepath=str(args.out/(group.lower()+'.blend')))
         manifest['clips'][group]={'ticks':ticks,'blend':group.lower()+'.blend'}
@@ -235,7 +262,7 @@ def main():
                 folder=args.out/('sprites%dx'%scale);folder.mkdir(exist_ok=True)
                 scene.render.resolution_percentage=50*scale
                 for i in range(n):
-                    f=1+ticks*i/(n if spec['loop'] else n-1)
+                    f=1+ticks*(.5 if n==1 else i/(n if spec['loop'] else n-1))
                     scene.frame_set(int(f),subframe=f-int(f));render.render_to(str(folder/('%s_%02d.png'%(group.lower(),i))))
             scene.render.resolution_percentage=100
     (args.out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
