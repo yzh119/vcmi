@@ -127,3 +127,37 @@ animation JSONs differ from 0.2.0 only by removal of generation flags. The final
 validator reports zero errors/warnings and 42 informational motion findings.
 Installation 0.3.0 is byte-verified, with 0.2.0 backed up; the running game was not
 restarted. `effects-manifest.json` and `effect-verification.json` record this audit.
+
+## Creature showcase backgrounds (0.5.0)
+
+Necropolis uses `CRBKGNEC` (100x130) and `TPCASNEC` (100x120) behind its creature
+showcases. `package_backdrop.py` adds eight PNG resources in Data/Data2x/Data3x/
+Data4x, preserving those logical sizes. A built-in image_gen edit of the original
+background supplies detailed masonry, mountains and cracked ground. The smaller
+variant crops the bottom ten logical pixels from the shared master, retaining
+the horizon. This preserves the reference composition approximately; it is new
+painted detail, not recovery of missing original pixels.
+
+```sh
+tools/creature-art/.venv/bin/python tools/creature-art/package_backdrop.py \
+  --source-mod "$HOME/vcmi-art/creature-game-03/mod" \
+  --master "$HOME/vcmi-art/creature-backdrop-02/generated.png" \
+  --out "$HOME/vcmi-art/creature-backdrop-02/mod" --version 0.5.0
+```
+
+The 728 existing source files are checked byte-for-byte before updating mod.json.
+No animation, shadow, outline or registration changes. All eight background PNGs
+pass size and pixel round-trip checks; the creature validator still reports zero
+errors/warnings and 42 informational findings. Offline showcase composites use the
+actual crop and saved shadow layers, and are not native screenshots. Package 0.5.0
+is installed with the initial backdrop package 0.4.0 backed up. Restart the running game to refresh its cache.
+No engine or faction configuration changes. Both backgrounds apply to all
+Necropolis creatures, including original upgraded units; other factions are untouched.
+
+Master, exact prompt, comparison and provenance: `~/vcmi-art/creature-backdrop-02`.
+
+A second built-in image edit sharpens masonry and ground detail following user
+feedback. Both generated masters are 1100x1430; the improvement is in painted
+edge/detail definition, not a larger returned image. The requested 2000x2600 size
+was not honored by the tool. Review the actual 200x260 comparison before attributing
+quality to the prompt dimensions. All eight backgrounds use the refined master.
